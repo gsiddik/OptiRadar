@@ -72,7 +72,9 @@ OptiNexus tells OptiRadar when a user's sessions have to end, through OpenID Con
 * Sessions started before the event are recognised by the user attribute `optinexusSessionsNotBefore`, so a
   restart or a second server instance does not bring them back.
 * Logging out in the OptiRadar web app sends the user to the OptiNexus end-session URL (attribute
-  `optinexusLogoutUrl`, set at SSO login), which logs them out of the other applications too.
+  `optinexusLogoutUrl`, set at SSO login), which logs them out of the other applications too and then returns to
+  OptiRadar. Register the OptiRadar address (`https://<radar>`, as `web.url` / the server address, without a path)
+  as a post-logout redirect URI of the OIDC client; without it OptiNexus shows its own "signed out" page.
 
 Limits: a plain logout does not revoke long-lived Traccar API tokens (a deactivation does, because the account is
 disabled); the `state` parameter is not checked (upstream behavior).
