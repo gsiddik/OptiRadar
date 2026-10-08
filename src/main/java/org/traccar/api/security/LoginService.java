@@ -21,6 +21,7 @@ import org.traccar.api.signature.TokenManager;
 import org.traccar.config.Config;
 import org.traccar.config.Keys;
 import org.traccar.database.LdapProvider;
+import org.traccar.database.OpenIdLifecycle;
 import org.traccar.helper.DataConverter;
 import org.traccar.helper.SessionHelper;
 import org.traccar.helper.model.UserUtil;
@@ -84,6 +85,11 @@ public class LoginService {
                 if (userId != null) {
                     User user = permissionsServiceProvider.get().getUser(userId);
                     if (user != null) {
+                        if (OpenIdLifecycle.isSessionRevoked(user, session)) {
+                            // The OpenID provider ended this user's sessions after this one began.
+                            session.invalidate();
+                            return null;
+                        }
                         checkUserEnabled(user);
                         return new LoginResult(user, expiration);
                     }
@@ -154,6 +160,13 @@ public class LoginService {
         User user = storage.getObject(User.class, new Request(
                 new Columns.All(),
                 new Condition.Equals("LOWER(email)", email.toLowerCase(Locale.ROOT))));
+
+        if (user != null && OpenIdLifecycle.reactivate(user)) {
+            // The provider has just let this user in again after switching the account off itself.
+            storage.updateObject(user, new Request(
+                    new Columns.Include("disabled", "attributes"),
+                    new Condition.Equals("id", user.getId())));
+        }
 
         if (user == null) {
 

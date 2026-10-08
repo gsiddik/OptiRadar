@@ -15,11 +15,14 @@
  */
 package org.traccar.api.resource;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.traccar.api.BaseResource;
 import org.traccar.api.security.CodeRequiredException;
 import org.traccar.api.security.LoginResult;
 import org.traccar.api.security.LoginService;
 import org.traccar.api.signature.TokenManager;
+import org.traccar.database.OpenIdLifecycle;
 import org.traccar.database.OpenIdProvider;
 import org.traccar.helper.LogAction;
 import org.traccar.helper.SessionHelper;
@@ -56,6 +59,8 @@ import java.util.Date;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
 public class SessionResource extends BaseResource {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(SessionResource.class);
 
     @Inject
     private LoginService loginService;
@@ -95,7 +100,7 @@ public class SessionResource extends BaseResource {
         Long userId = session != null ? (Long) session.getAttribute(SessionHelper.USER_ID_KEY) : null;
         if (userId != null && SessionHelper.isSessionOriginValid(request)) {
             User user = permissionsService.getUser(userId);
-            if (user != null) {
+            if (user != null && !OpenIdLifecycle.isSessionRevoked(user, session)) {
                 return user;
             }
         }
@@ -179,6 +184,28 @@ public class SessionResource extends BaseResource {
             throw new UnsupportedOperationException("OpenID not enabled");
         }
         return Response.seeOther(openIdProvider.createAuthUri()).build();
+    }
+
+    /**
+     * OpenID Connect Back-Channel Logout: the provider calls this server to end a user's sessions, and, when the user
+     * lost access, to switch the account off. The signed logout token is the only credential.
+     */
+    @PermitAll
+    @Path("openid/backchannel-logout")
+    @POST
+    public Response backchannelLogout(@FormParam("logout_token") String logoutToken) throws Exception {
+        if (openIdProvider == null) {
+            throw new UnsupportedOperationException("OpenID not enabled");
+        }
+        try {
+            openIdProvider.handleBackchannelLogout(logoutToken);
+        } catch (GeneralSecurityException e) {
+            LOGGER.warn("Back-channel logout refused: {}", e.getMessage());
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .header("Cache-Control", "no-store")
+                    .entity("{\"error\":\"invalid_request\"}").build();
+        }
+        return Response.ok("{}").header("Cache-Control", "no-store").build();
     }
 
     @PermitAll
