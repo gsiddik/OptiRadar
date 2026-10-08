@@ -79,6 +79,45 @@ OptiNexus tells OptiRadar when a user's sessions have to end, through OpenID Con
 Limits: a plain logout does not revoke long-lived Traccar API tokens (a deactivation does, because the account is
 disabled); the `state` parameter is not checked (upstream behavior).
 
+## Events to OptiNexus
+
+OptiRadar can report five kinds of events to OptiNexus (`POST /api/v1/events`, key prefix `optiradar.`):
+
+| Traccar event | OptiNexus event |
+|---|---|
+| `deviceOnline` | `optiradar.device.online` |
+| `deviceOffline`, `deviceUnknown` | `optiradar.device.offline` (the payload `status` says `offline` or `unknown`) |
+| `geofenceEnter` / `geofenceExit` | `optiradar.geofence.entered` / `optiradar.geofence.exited` |
+| `deviceOverspeed` | `optiradar.device.overspeed` |
+
+Only devices that belong to a tenant (their group, or an ancestor group, has the attribute `optinexusTenantId`, a UUID)
+are reported, and that tenant is the event's tenant. Raw positions are never sent. Each event is first written to the
+table `tc_optinexus_events` (the outbox) next to the normal event, and a scheduled task delivers it. A row is
+`DELIVERED` only after OptiNexus accepted it, it is sent under its own id as `event_id` (a retry never makes a second
+event), and OptiNexus being down loses nothing: network errors, 5xx, 401, 408, 429 and an event type that is not yet
+in the OptiNexus Event Catalog are retried with growing delay (2 minutes after the first attempt, doubling up to
+1 hour, `optinexus.events.maxAttempts` attempts). Any other refusal (payload does not match, application not assigned
+to the tenant) parks the row as `FAILED`; after fixing the cause put it back with
+`UPDATE tc_optinexus_events SET status = 'PENDING', attempts = 0, lastattemptedat = NULL WHERE status = 'FAILED'`.
+Delivered rows are deleted after `optinexus.events.retentionDays` days.
+
+Settings (all in `traccar.xml`; `setup/traccar-optinexus.xml` has them):
+
+| Key | Meaning |
+|---|---|
+| `optinexus.events.enable` | Turn reporting on (default `false`). Events that happen while it is off are not reported later. |
+| `optinexus.baseUrl` | OptiNexus address, for example `https://nexus.example.com`. |
+| `optinexus.clientId`, `optinexus.clientSecret` | Service account of the OptiRadar application in OptiNexus, with the `event.write` scope. |
+| `optinexus.events.interval` | Seconds between deliveries (default 30). |
+| `optinexus.events.batchSize` | Events per delivery run (default 50). |
+| `optinexus.events.maxAttempts` | Attempts before an event is parked (default 20). |
+| `optinexus.events.retentionDays` | Days a delivered event stays in the table (default 7). |
+| `event.status.enable` | Traccar's own switch for online/offline/unknown events; without it there are none to report (default `false`). |
+
+In OptiNexus the five events must be in the Event Catalog first (`php artisan db:seed
+--class=OptiRadarEventCatalogSeeder`) and the OptiRadar application must be assigned to the tenant. The schema change
+(`tc_optinexus_events`) is applied by the normal database migration at server start.
+
 ## Build and deploy
 
 OptiRadar is a fork of Traccar. The integration lives in **both** parts, so neither the stock `traccar/traccar`
@@ -103,5 +142,6 @@ know which tenant a device belongs to, and links devices to OptiFleet vehicles b
 
 * Upstream behavior kept as is: the `state` value of the authorization request is not checked on the callback, and the
   ID token is not verified separately (user info is fetched from the provider's endpoint with the access token).
-* Tests: `OpenIdTenantLinkerTest`, `OpenIdAppsTest`, `OpenIdLifecycleTest`, `OpenIdLogoutTokensTest`. The full
-  login round trip against a running OptiNexus is not covered by an automated test.
+* Tests: `OpenIdTenantLinkerTest`, `OpenIdAppsTest`, `OpenIdLifecycleTest`, `OpenIdLogoutTokensTest`,
+  `OptinexusEventRecorderTest`, `OptinexusEventRelayTest`. The full login round trip and the delivery of events against
+  a running OptiNexus are not covered by an automated test (they were exercised by hand against a live OptiNexus).

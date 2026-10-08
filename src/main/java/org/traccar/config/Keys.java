@@ -912,6 +912,69 @@ public final class Keys {
             "optinexusTenantId");
 
     /**
+     * Report device online/offline, geofence enter/exit and overspeed events to OptiNexus (POST /api/v1/events).
+     * Only devices of a tenant group (see openid.tenantGroupAttribute) are reported. Disabled by default; device
+     * online/offline events also need event.status.enable.
+     */
+    public static final ConfigKey<Boolean> OPTINEXUS_EVENTS_ENABLE = new BooleanConfigKey(
+            "optinexus.events.enable",
+            List.of(KeyType.CONFIG),
+            false);
+
+    /**
+     * Base address of OptiNexus, for example https://nexus.example.com.
+     */
+    public static final ConfigKey<String> OPTINEXUS_BASE_URL = new StringConfigKey(
+            "optinexus.baseUrl",
+            List.of(KeyType.CONFIG));
+
+    /**
+     * Client id of the OptiNexus service account of OptiRadar (needs the event.write scope).
+     */
+    public static final ConfigKey<String> OPTINEXUS_CLIENT_ID = new StringConfigKey(
+            "optinexus.clientId",
+            List.of(KeyType.CONFIG));
+
+    /**
+     * Client secret of the OptiNexus service account of OptiRadar.
+     */
+    public static final ConfigKey<String> OPTINEXUS_CLIENT_SECRET = new StringConfigKey(
+            "optinexus.clientSecret",
+            List.of(KeyType.CONFIG));
+
+    /**
+     * Seconds between deliveries of pending events to OptiNexus. Default is 30 seconds.
+     */
+    public static final ConfigKey<Long> OPTINEXUS_EVENTS_INTERVAL = new LongConfigKey(
+            "optinexus.events.interval",
+            List.of(KeyType.CONFIG),
+            30L);
+
+    /**
+     * Most events sent in one delivery run. Default is 50.
+     */
+    public static final ConfigKey<Integer> OPTINEXUS_EVENTS_BATCH_SIZE = new IntegerConfigKey(
+            "optinexus.events.batchSize",
+            List.of(KeyType.CONFIG),
+            50);
+
+    /**
+     * Attempts before an event is parked as FAILED. Default is 20.
+     */
+    public static final ConfigKey<Integer> OPTINEXUS_EVENTS_MAX_ATTEMPTS = new IntegerConfigKey(
+            "optinexus.events.maxAttempts",
+            List.of(KeyType.CONFIG),
+            20);
+
+    /**
+     * Days a delivered event is kept in the outbox table before it is deleted. Default is 7.
+     */
+    public static final ConfigKey<Integer> OPTINEXUS_EVENTS_RETENTION_DAYS = new IntegerConfigKey(
+            "optinexus.events.retentionDays",
+            List.of(KeyType.CONFIG),
+            7);
+
+    /**
      * If no data is reported by a device for the given amount of time, status changes from online to unknown. Value is
      * in seconds. Default timeout is 10 minutes.
      */
