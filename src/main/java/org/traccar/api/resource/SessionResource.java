@@ -15,7 +15,6 @@
  */
 package org.traccar.api.resource;
 
-import com.nimbusds.oauth2.sdk.ParseException;
 import org.traccar.api.BaseResource;
 import org.traccar.api.security.CodeRequiredException;
 import org.traccar.api.security.LoginResult;
@@ -185,7 +184,7 @@ public class SessionResource extends BaseResource {
     @PermitAll
     @Path("openid/callback")
     @GET
-    public Response requestToken() throws IOException, StorageException, ParseException, GeneralSecurityException {
+    public Response requestToken() throws Exception {
         if (openIdProvider == null) {
             throw new UnsupportedOperationException("OpenID not enabled");
         }

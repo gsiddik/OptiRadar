@@ -892,6 +892,26 @@ public final class Keys {
             List.of(KeyType.CONFIG));
 
     /**
+     * OpenID Connect claim that carries the tenant (organization) of the signed-in user. When set, every OpenID
+     * login must name a tenant, the user's email must be verified and a group whose attribute (see
+     * openid.tenantGroupAttribute) holds that tenant must exist; the user is then linked to that group only, so
+     * the user sees just that tenant's devices. Logins for unknown tenants are rejected.
+     * If this is not provided, OpenID logins are not tied to a tenant.
+     */
+    public static final ConfigKey<String> OPENID_TENANT_CLAIM = new StringConfigKey(
+            "openid.tenantClaim",
+            List.of(KeyType.CONFIG));
+
+    /**
+     * Name of the group attribute that holds the OpenID tenant identifier, used with openid.tenantClaim.
+     * Defaults to "optinexusTenantId".
+     */
+    public static final ConfigKey<String> OPENID_TENANT_GROUP_ATTRIBUTE = new StringConfigKey(
+            "openid.tenantGroupAttribute",
+            List.of(KeyType.CONFIG),
+            "optinexusTenantId");
+
+    /**
      * If no data is reported by a device for the given amount of time, status changes from online to unknown. Value is
      * in seconds. Default timeout is 10 minutes.
      */

@@ -38,6 +38,7 @@ import org.traccar.config.Config;
 import org.traccar.config.Keys;
 import org.traccar.database.LdapProvider;
 import org.traccar.database.OpenIdProvider;
+import org.traccar.database.OpenIdTenantLinker;
 import org.traccar.database.StatisticsManager;
 import org.traccar.forward.EventForwarder;
 import org.traccar.forward.EventForwarderAmqp;
@@ -207,10 +208,10 @@ public class MainModule extends AbstractModule {
     @Singleton
     @Provides
     public static OpenIdProvider provideOpenIDProvider(
-            Config config, LoginService loginService, LogAction actionLogger)
+            Config config, LoginService loginService, LogAction actionLogger, OpenIdTenantLinker tenantLinker)
             throws IOException, URISyntaxException, GeneralException {
         if (config.hasKey(Keys.OPENID_CLIENT_ID)) {
-            return new OpenIdProvider(config, loginService, actionLogger);
+            return new OpenIdProvider(config, loginService, actionLogger, tenantLinker);
         }
         return null;
     }
