@@ -49,8 +49,8 @@ import org.traccar.config.Keys;
 import org.traccar.helper.LogAction;
 import org.traccar.helper.SessionHelper;
 import org.traccar.helper.WebHelper;
+import org.traccar.model.Group;
 import org.traccar.model.User;
-import org.traccar.storage.StorageException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
@@ -71,16 +71,19 @@ public class OpenIdProvider {
     private final String adminGroup;
     private final String allowGroup;
     private final String groupsClaimName;
+    private final String tenantClaim;
 
     private final LoginService loginService;
+    private final OpenIdTenantLinker tenantLinker;
     private final LogAction actionLogger;
 
     @Inject
     public OpenIdProvider(
-            Config config, LoginService loginService, LogAction actionLogger)
+            Config config, LoginService loginService, LogAction actionLogger, OpenIdTenantLinker tenantLinker)
             throws IOException, URISyntaxException, GeneralException {
 
         this.loginService = loginService;
+        this.tenantLinker = tenantLinker;
         this.actionLogger = actionLogger;
 
         force = config.getBoolean(Keys.OPENID_FORCE);
@@ -105,6 +108,7 @@ public class OpenIdProvider {
         adminGroup = config.getString(Keys.OPENID_ADMIN_GROUP);
         allowGroup = config.getString(Keys.OPENID_ALLOW_GROUP);
         groupsClaimName = config.getString(Keys.OPENID_GROUPS_CLAIM_NAME);
+        tenantClaim = config.getString(Keys.OPENID_TENANT_CLAIM);
     }
 
     public URI createAuthUri() {
@@ -151,7 +155,7 @@ public class OpenIdProvider {
     }
 
     public URI handleCallback(String queryParameters, HttpServletRequest request)
-            throws StorageException, ParseException, IOException, GeneralSecurityException {
+            throws Exception {
 
         String redirectUriOverride = request.getParameter("redirect_uri");
         URI redirectUri;
@@ -189,8 +193,23 @@ public class OpenIdProvider {
             throw new GeneralSecurityException("Your OpenID Groups do not permit access");
         }
 
+        Group tenantGroup = null;
+        if (tenantClaim != null) {
+            // The tenant decides which devices the user can see, so it is resolved (and the email trusted)
+            // before an account is created or changed.
+            if (!Boolean.TRUE.equals(userInfo.getEmailVerified())) {
+                throw new GeneralSecurityException("Your email address is not verified");
+            }
+            tenantGroup = tenantLinker.findGroup(userInfo.getStringClaim(tenantClaim));
+        }
+
         User user = loginService.login(
                 userInfo.getEmailAddress(), userInfo.getName(), administrator).getUser();
+
+        if (tenantGroup != null) {
+            tenantLinker.link(request, user, tenantGroup);
+            tenantLinker.rememberApps(user, OpenIdApps.parse(userInfo.getClaim("apps")));
+        }
 
         SessionHelper.userLogin(actionLogger, request, user, null);
 
