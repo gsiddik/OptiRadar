@@ -50,7 +50,8 @@ public class ScheduleManager implements LifecycleObject {
                 TaskReports.class,
                 TaskDeviceInactivityCheck.class,
                 TaskSessionTimeout.class,
-                TaskWebSocketKeepalive.class)
+                TaskWebSocketKeepalive.class,
+                TaskOptinexusEventRelay.class)
                 .forEachOrdered(taskClass -> {
                     var task = injector.getInstance(taskClass);
                     if (task.multipleInstances() || !secondary) {

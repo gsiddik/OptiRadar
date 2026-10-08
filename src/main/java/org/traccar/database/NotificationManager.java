@@ -54,6 +54,7 @@ public class NotificationManager {
     private final Storage storage;
     private final CacheManager cacheManager;
     private final EventForwarder eventForwarder;
+    private final OptinexusEventRecorder optinexusEventRecorder;
     private final NotificatorManager notificatorManager;
     private final Geocoder geocoder;
 
@@ -64,10 +65,12 @@ public class NotificationManager {
     @Inject
     public NotificationManager(
             Config config, Storage storage, CacheManager cacheManager, @Nullable EventForwarder eventForwarder,
-            NotificatorManager notificatorManager, @Nullable Geocoder geocoder) {
+            NotificatorManager notificatorManager, @Nullable Geocoder geocoder,
+            OptinexusEventRecorder optinexusEventRecorder) {
         this.storage = storage;
         this.cacheManager = cacheManager;
         this.eventForwarder = eventForwarder;
+        this.optinexusEventRecorder = optinexusEventRecorder;
         this.notificatorManager = notificatorManager;
         this.geocoder = geocoder;
         geocodeOnRequest = config.getBoolean(Keys.GEOCODER_ON_REQUEST);
@@ -88,6 +91,7 @@ public class NotificationManager {
         }
 
         forwardEvent(event, position);
+        optinexusEventRecorder.record(event, position);
 
         if (System.currentTimeMillis() - event.getEventTime().getTime() > timeThreshold) {
             LOGGER.info("Skipping notifications for old event");

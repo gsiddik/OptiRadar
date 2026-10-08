@@ -33,4 +33,15 @@
     -->
     <entry key='users.defaultDeviceLimit'>0</entry>
 
+    <!--
+        Report device online/offline, geofence enter/exit and overspeed events to OptiNexus. Create a service account
+        for OptiRadar in OptiNexus (scope event.write) and register the events there first.
+        event.status.enable is Traccar's own switch for online/offline/unknown events.
+    -->
+    <entry key='event.status.enable'>true</entry>
+    <entry key='optinexus.events.enable'>false</entry>
+    <entry key='optinexus.baseUrl'>https://nexus.example.com</entry>
+    <entry key='optinexus.clientId'>CHANGE-service-account-client-id</entry>
+    <entry key='optinexus.clientSecret'>CHANGE-service-account-client-secret</entry>
+
 </properties>
