@@ -56,6 +56,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.util.List;
 
@@ -72,18 +74,23 @@ public class OpenIdProvider {
     private final String allowGroup;
     private final String groupsClaimName;
     private final String tenantClaim;
+    private final URI endSessionUrl;
+    private final OpenIdLogoutTokens logoutTokens;
 
     private final LoginService loginService;
     private final OpenIdTenantLinker tenantLinker;
+    private final OpenIdLifecycle lifecycle;
     private final LogAction actionLogger;
 
     @Inject
     public OpenIdProvider(
-            Config config, LoginService loginService, LogAction actionLogger, OpenIdTenantLinker tenantLinker)
+            Config config, LoginService loginService, LogAction actionLogger, OpenIdTenantLinker tenantLinker,
+            OpenIdLifecycle lifecycle)
             throws IOException, URISyntaxException, GeneralException {
 
         this.loginService = loginService;
         this.tenantLinker = tenantLinker;
+        this.lifecycle = lifecycle;
         this.actionLogger = actionLogger;
 
         force = config.getBoolean(Keys.OPENID_FORCE);
@@ -99,10 +106,16 @@ public class OpenIdProvider {
             authUrl = meta.getAuthorizationEndpointURI();
             tokenUrl = meta.getTokenEndpointURI();
             userInfoUrl = meta.getUserInfoEndpointURI();
+            endSessionUrl = meta.getEndSessionEndpointURI();
+            // Back-channel logout needs the provider's key set, which only discovery gives us.
+            logoutTokens = meta.getJWKSetURI() != null
+                    ? OpenIdLogoutTokens.create(meta.getIssuer(), clientId, meta.getJWKSetURI().toURL()) : null;
         } else {
             authUrl = new URI(config.getString(Keys.OPENID_AUTH_URL));
             tokenUrl = new URI(config.getString(Keys.OPENID_TOKEN_URL));
             userInfoUrl = new URI(config.getString(Keys.OPENID_USERINFO_URL));
+            endSessionUrl = null;
+            logoutTokens = null;
         }
 
         adminGroup = config.getString(Keys.OPENID_ADMIN_GROUP);
@@ -209,11 +222,37 @@ public class OpenIdProvider {
         if (tenantGroup != null) {
             tenantLinker.link(request, user, tenantGroup);
             tenantLinker.rememberApps(user, OpenIdApps.parse(userInfo.getClaim("apps")));
+            lifecycle.rememberLogoutUrl(user, logoutUrl());
         }
 
         SessionHelper.userLogin(actionLogger, request, user, null);
 
         return baseUrl.resolve("?openid=success");
+    }
+
+    /**
+     * Where the web app sends the browser after it ended the local session, so the provider signs the user out of
+     * every application. Null when the provider does not publish an end session endpoint.
+     */
+    public String logoutUrl() {
+        if (endSessionUrl == null) {
+            return null;
+        }
+        String separator = endSessionUrl.getQuery() == null ? "?" : "&";
+        return endSessionUrl + separator + "client_id=" + URLEncoder.encode(clientId.getValue(), StandardCharsets.UTF_8)
+                + "&post_logout_redirect_uri=" + URLEncoder.encode(baseUrl.toString(), StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Handles a logout token pushed by the provider (OIDC Back-Channel Logout).
+     *
+     * @throws GeneralSecurityException if the token is not valid, or the provider is not set up for the feature
+     */
+    public void handleBackchannelLogout(String logoutToken) throws Exception {
+        if (logoutTokens == null) {
+            throw new GeneralSecurityException("Back-channel logout needs openid.issuerUrl");
+        }
+        lifecycle.apply(logoutTokens.verify(logoutToken));
     }
 
     public boolean getForce() {

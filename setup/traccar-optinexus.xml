@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE properties SYSTEM 'http://java.sun.com/dtd/properties.dtd'>
+<properties>
+
+    <!--
+        Sample configuration for running OptiRadar together with OptiNexus (single sign-on, central logout).
+        Copy it over conf/traccar.xml and replace the values marked CHANGE. Password sign-in keeps working
+        next to it: the integration only adds the OpenID path. Guide: docs/optinexus-sso.md
+    -->
+
+    <entry key='database.driver'>org.h2.Driver</entry>
+    <entry key='database.url'>jdbc:h2:./data/database</entry>
+    <entry key='database.user'>sa</entry>
+    <entry key='database.password' />
+
+    <!-- OptiNexus as OpenID provider. Register OptiRadar there as an OIDC client first. -->
+    <entry key='openid.clientId'>CHANGE-client-id</entry>
+    <entry key='openid.clientSecret'>CHANGE-client-secret</entry>
+    <entry key='openid.issuerUrl'>https://nexus.example.com</entry>
+    <entry key='openid.allowGroup'>optiradar</entry>
+
+    <!-- Tie every login to the tenant that OptiNexus names (claim tenant_id) and to its group in OptiRadar. -->
+    <entry key='openid.tenantClaim'>tenant_id</entry>
+    <entry key='openid.tenantGroupAttribute'>optinexusTenantId</entry>
+
+    <!-- Create the user's account on the first SSO login, as long as the tenant has a group. -->
+    <entry key='openid.allowRegistration'>true</entry>
+
+    <!--
+        Accounts created through SSO or self-registration may not add devices of their own; a tenant user only sees
+        the devices of the tenant group. 0 = no new devices, -1 = unlimited (the Traccar default).
+        It applies to accounts created from now on, not to existing ones.
+    -->
+    <entry key='users.defaultDeviceLimit'>0</entry>
+
+</properties>
