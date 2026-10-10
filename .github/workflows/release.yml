@@ -8,6 +8,10 @@ on:
         required: true
         default: preview
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   build-server:
     name: Build server
@@ -30,7 +34,7 @@ jobs:
           cp target/lib/* out/lib/
           cp schema/* out/schema/
           cp -r templates/* out/templates/
-          cp setup/traccar.xml out/conf/
+          cp setup/optiradar.xml out/conf/
       - uses: actions/upload-artifact@v7
         with:
           name: staged-server
@@ -43,8 +47,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          repository: traccar/traccar-web
-          ref: ${{ github.ref_name }}
+          repository: ${{ github.repository_owner }}/OptiRadar-web
+          ref: main
+          # GITHUB_TOKEN only reaches this repository; set OPTIRADAR_WEB_TOKEN when OptiRadar-web is private
+          token: ${{ secrets.OPTIRADAR_WEB_TOKEN || github.token }}
       - uses: actions/setup-node@v6
         with:
           node-version: 22
@@ -86,14 +92,14 @@ jobs:
         working-directory: setup
         run: |
           mkdir -p out/data out/logs
-          cp setup.sh traccar.service out/
+          cp setup.sh optiradar.service out/
           jlink --add-modules java.se,jdk.charsets,jdk.crypto.ec,jdk.net,jdk.unsupported --output out/jre
-          makeself --needroot --quiet --notemp out traccar.run "traccar" ./setup.sh
-          zip -q -j "traccar-linux-64-${{ github.event.inputs.version }}.zip" traccar.run README.txt
+          makeself --needroot --quiet --notemp out optiradar.run "optiradar" ./setup.sh
+          zip -q -j "optiradar-linux-64-${{ github.event.inputs.version }}.zip" optiradar.run README.txt
       - uses: actions/upload-artifact@v7
         with:
           name: installers-linux-64
-          path: setup/traccar-linux-64-*.zip
+          path: setup/optiradar-linux-64-*.zip
           compression-level: 0
           retention-days: 1
 
@@ -121,14 +127,14 @@ jobs:
         working-directory: setup
         run: |
           mkdir -p out/data out/logs
-          cp setup.sh traccar.service out/
+          cp setup.sh optiradar.service out/
           jlink --add-modules java.se,jdk.charsets,jdk.crypto.ec,jdk.net,jdk.unsupported --output out/jre
-          makeself --needroot --quiet --notemp out traccar.run "traccar" ./setup.sh
-          zip -q -j "traccar-linux-arm-${{ github.event.inputs.version }}.zip" traccar.run README.txt
+          makeself --needroot --quiet --notemp out optiradar.run "optiradar" ./setup.sh
+          zip -q -j "optiradar-linux-arm-${{ github.event.inputs.version }}.zip" optiradar.run README.txt
       - uses: actions/upload-artifact@v7
         with:
           name: installers-linux-arm
-          path: setup/traccar-linux-arm-*.zip
+          path: setup/optiradar-linux-arm-*.zip
           compression-level: 0
           retention-days: 1
 
@@ -157,19 +163,19 @@ jobs:
       - name: Build installer
         shell: cmd
         working-directory: setup
-        run: '"%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe" traccar.iss'
+        run: '"%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe" optiradar.iss'
       - name: Zip installer
         shell: pwsh
         working-directory: setup
         run: |
           New-Item -ItemType Directory -Path stage | Out-Null
-          Copy-Item Output\traccar-setup.exe stage\
+          Copy-Item Output\optiradar-setup.exe stage\
           Copy-Item README.txt stage\
-          Compress-Archive -Path stage\* -DestinationPath "traccar-windows-64-${{ github.event.inputs.version }}.zip"
+          Compress-Archive -Path stage\* -DestinationPath "optiradar-windows-64-${{ github.event.inputs.version }}.zip"
       - uses: actions/upload-artifact@v7
         with:
           name: installers-windows
-          path: setup/traccar-windows-64-*.zip
+          path: setup/optiradar-windows-64-*.zip
           compression-level: 0
           retention-days: 1
 
@@ -193,11 +199,11 @@ jobs:
         run: |
           mkdir -p out/data out/logs
           cp README.txt out/
-          (cd out && zip -q -r "../traccar-other-${{ github.event.inputs.version }}.zip" .)
+          (cd out && zip -q -r "../optiradar-other-${{ github.event.inputs.version }}.zip" .)
       - uses: actions/upload-artifact@v7
         with:
           name: installers-other
-          path: setup/traccar-other-*.zip
+          path: setup/optiradar-other-*.zip
           compression-level: 0
           retention-days: 1
 
@@ -215,22 +221,22 @@ jobs:
           - name: Windows
             runner: windows-latest
             artifact: installers-windows
-            file: traccar-windows-64-${{ github.event.inputs.version }}.zip
-            logs_dir: "/c/Program Files/Traccar/logs"
-            start: sc start traccar
+            file: optiradar-windows-64-${{ github.event.inputs.version }}.zip
+            logs_dir: "/c/Program Files/OptiRadar/logs"
+            start: sc start optiradar
           - name: Linux 64
             runner: ubuntu-latest
             artifact: installers-linux-64
-            file: traccar-linux-64-${{ github.event.inputs.version }}.zip
-            logs_dir: /opt/traccar/logs
-            start: sudo systemctl start traccar
+            file: optiradar-linux-64-${{ github.event.inputs.version }}.zip
+            logs_dir: /opt/optiradar/logs
+            start: sudo systemctl start optiradar
             sudo: sudo
           - name: Linux ARM
             runner: ubuntu-24.04-arm
             artifact: installers-linux-arm
-            file: traccar-linux-arm-${{ github.event.inputs.version }}.zip
-            logs_dir: /opt/traccar/logs
-            start: sudo systemctl start traccar
+            file: optiradar-linux-arm-${{ github.event.inputs.version }}.zip
+            logs_dir: /opt/optiradar/logs
+            start: sudo systemctl start optiradar
             sudo: sudo
     steps:
       - uses: actions/download-artifact@v8
@@ -240,11 +246,11 @@ jobs:
         run: unzip -q ${{ matrix.file }}
       - name: Install (Linux)
         if: runner.os == 'Linux'
-        run: sudo bash traccar.run
+        run: sudo bash optiradar.run
       - name: Install (Windows)
         if: runner.os == 'Windows'
         shell: cmd
-        run: traccar-setup.exe /VERYSILENT /SP- /SUPPRESSMSGBOXES /NORESTART
+        run: optiradar-setup.exe /VERYSILENT /SP- /SUPPRESSMSGBOXES /NORESTART
       - name: Start service and probe web port
         run: |
           ${{ matrix.start }}
@@ -262,17 +268,16 @@ jobs:
           pattern: installers-*
           merge-multiple: true
       - if: ${{ github.event.inputs.version == 'preview' }}
-        env:
-          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
-          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
-        run: |
-          sudo apt-get install -y s3cmd
-          s3cmd --acl-public put traccar-*.zip s3://traccar/builds/ --host=nyc3.digitaloceanspaces.com --host-bucket=traccar --access_key="$S3_ACCESS_KEY" --secret_key="$S3_SECRET_KEY"
+        uses: actions/upload-artifact@v7
+        with:
+          name: optiradar-preview
+          path: optiradar-*.zip
+          compression-level: 0
       - if: ${{ github.event.inputs.version != 'preview' }}
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ github.event.inputs.version }}
-          files: traccar-*.zip
+          files: optiradar-*.zip
 
   docker:
     name: Docker ${{ matrix.os }}
@@ -296,10 +301,6 @@ jobs:
       - uses: docker/setup-buildx-action@v4
       - uses: docker/login-action@v4
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - uses: docker/login-action@v4
-        with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
@@ -308,8 +309,7 @@ jobs:
         with:
           flavor: latest=false
           images: |
-            traccar/traccar
-            ghcr.io/traccar/traccar
+            ghcr.io/${{ github.repository_owner }}/optiradar
           tags: |
             type=semver,pattern={{major}}.{{minor}}.{{patch}},suffix=-${{ matrix.os }},value=v${{ github.event.inputs.version }}
             type=semver,pattern={{major}}.{{minor}},suffix=-${{ matrix.os }},value=v${{ github.event.inputs.version }}

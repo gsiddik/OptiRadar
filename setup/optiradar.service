@@ -1,0 +1,16 @@
+[Unit]
+Description=OptiRadar
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/optiradar
+ExecStart=/opt/optiradar/jre/bin/java -XX:+ExitOnOutOfMemoryError -jar tracker-server.jar conf/optiradar.xml
+SyslogIdentifier=optiradar
+SuccessExitStatus=143
+WatchdogSec=600
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

@@ -46,7 +46,7 @@ public class ConsoleServlet extends JakartaWebServlet {
             field.setAccessible(true);
             WebServer server = (WebServer) field.get(this);
 
-            ConnectionInfo connectionInfo = new ConnectionInfo("Traccar|"
+            ConnectionInfo connectionInfo = new ConnectionInfo("OptiRadar|"
                     + config.getString(Keys.DATABASE_DRIVER) + "|"
                     + config.getString(Keys.DATABASE_URL) + "|"
                     + config.getString(Keys.DATABASE_USER));

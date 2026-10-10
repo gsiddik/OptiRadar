@@ -1,8 +1,8 @@
 # Single sign-on with OptiNexus
 
-OptiRadar signs users in through OptiNexus (OpenID Connect) with Traccar's built-in OpenID client. Two settings,
+OptiRadar signs users in through OptiNexus (OpenID Connect) with its built-in OpenID client (inherited from Traccar). Two settings,
 `openid.tenantClaim` and `openid.tenantGroupAttribute`, tie each login to a tenant. Without `openid.tenantClaim`
-nothing below changes and OpenID behaves as in stock Traccar.
+nothing below changes and OpenID behaves as in upstream Traccar.
 
 ## How a login works
 
@@ -23,7 +23,7 @@ nothing below changes and OpenID behaves as in stock Traccar.
 Devices belong to a tenant through their group (devices in a tenant group, or in its sub-groups, are visible to the
 tenant's users).
 
-## Configuration (`traccar.xml`)
+## Configuration (`conf/optiradar.xml`)
 
 ```xml
 <entry key='openid.clientId'>optiradar</entry>
@@ -43,8 +43,8 @@ tenant's users).
   Pair it with `users.defaultDeviceLimit=0`: new accounts then cannot create devices of their own and only see the
   devices of their tenant group. The limit blocks *adding* devices only; devices that come through the group stay
   visible. It is applied when an account is created, so it does not change accounts that already exist.
-* `setup/traccar-optinexus.xml` is a ready-to-copy sample with these settings. The stock `setup/traccar.xml` is not
-  changed, so a plain installation behaves as before. With Docker (`CONFIG_USE_ENVIRONMENT_VARIABLES: "true"`) use
+* `setup/optiradar-optinexus.xml` is a ready-to-copy sample with these settings. The default `setup/optiradar.xml`
+  has none of them, so a plain installation behaves as before. With Docker (`CONFIG_USE_ENVIRONMENT_VARIABLES: "true"`) use
   `OPENID_CLIENT_ID`, `OPENID_TENANT_CLAIM`, `OPENID_ALLOW_REGISTRATION=true` and `USERS_DEFAULT_DEVICE_LIMIT=0`.
 
 ## Password sign-in keeps working
@@ -76,14 +76,14 @@ OptiNexus tells OptiRadar when a user's sessions have to end, through OpenID Con
   OptiRadar. Register the OptiRadar address (`https://<radar>`, as `web.url` / the server address, without a path)
   as a post-logout redirect URI of the OIDC client; without it OptiNexus shows its own "signed out" page.
 
-Limits: a plain logout does not revoke long-lived Traccar API tokens (a deactivation does, because the account is
+Limits: a plain logout does not revoke long-lived OptiRadar API tokens (a deactivation does, because the account is
 disabled); the `state` parameter is not checked (upstream behavior).
 
 ## Events to OptiNexus
 
 OptiRadar can report five kinds of events to OptiNexus (`POST /api/v1/events`, key prefix `optiradar.`):
 
-| Traccar event | OptiNexus event |
+| OptiRadar event | OptiNexus event |
 |---|---|
 | `deviceOnline` | `optiradar.device.online` |
 | `deviceOffline`, `deviceUnknown` | `optiradar.device.offline` (the payload `status` says `offline` or `unknown`) |
@@ -101,7 +101,7 @@ to the tenant) parks the row as `FAILED`; after fixing the cause put it back wit
 `UPDATE tc_optinexus_events SET status = 'PENDING', attempts = 0, lastattemptedat = NULL WHERE status = 'FAILED'`.
 Delivered rows are deleted after `optinexus.events.retentionDays` days.
 
-Settings (all in `traccar.xml`; `setup/traccar-optinexus.xml` has them):
+Settings (all in `conf/optiradar.xml`; `setup/optiradar-optinexus.xml` has them):
 
 | Key | Meaning |
 |---|---|
@@ -112,7 +112,7 @@ Settings (all in `traccar.xml`; `setup/traccar-optinexus.xml` has them):
 | `optinexus.events.batchSize` | Events per delivery run (default 50). |
 | `optinexus.events.maxAttempts` | Attempts before an event is parked (default 20). |
 | `optinexus.events.retentionDays` | Days a delivered event stays in the table (default 7). |
-| `event.status.enable` | Traccar's own switch for online/offline/unknown events; without it there are none to report (default `false`). |
+| `event.status.enable` | OptiRadar's own switch for online/offline/unknown events; without it there are none to report (default `false`). |
 
 In OptiNexus the five events must be in the Event Catalog first (`php artisan db:seed
 --class=OptiRadarEventCatalogSeeder`) and the OptiRadar application must be assigned to the tenant. The schema change
@@ -124,7 +124,8 @@ OptiRadar is a fork of Traccar. The integration lives in **both** parts, so neit
 image nor the upstream web app has it:
 
 1. Server (this repository): `./gradlew assemble` builds `target/tracker-server.jar`; the Docker files in `docker/`
-   package it (`traccar-other-<version>.zip`).
+   package it (`optiradar-other-<version>.zip`) and the release workflow builds the installers and the image
+   `ghcr.io/<owner>/optiradar`, with the web app taken from the OptiRadar-web repository.
 2. Web app (the OptiRadar-web repository): `npm ci && npm run build`, then point `web.path` at the `build` folder
    (or place it where the server expects `./web`). The logout redirect and the app switcher come from this part.
 
@@ -134,8 +135,8 @@ attribute described below.
 
 ## Onboarding a tenant
 
-Create a group per tenant and set the attribute `optinexusTenantId` to the OptiNexus tenant id (Traccar → Groups →
-Attributes). Put the tenant's devices in that group. The OptiNexus telematics connector reads the same attribute to
+Create a group per tenant and set the attribute `optinexusTenantId` to the OptiNexus tenant id (OptiRadar → Settings →
+Groups → Attributes). Put the tenant's devices in that group. The OptiNexus telematics connector reads the same attribute to
 know which tenant a device belongs to, and links devices to OptiFleet vehicles by registration number.
 
 ## Notes
@@ -145,3 +146,12 @@ know which tenant a device belongs to, and links devices to OptiFleet vehicles b
 * Tests: `OpenIdTenantLinkerTest`, `OpenIdAppsTest`, `OpenIdLifecycleTest`, `OpenIdLogoutTokensTest`,
   `OptinexusEventRecorderTest`, `OptinexusEventRelayTest`. The full login round trip and the delivery of events against
   a running OptiNexus are not covered by an automated test (they were exercised by hand against a live OptiNexus).
+
+## Upgrading an installation from before the rename
+
+Earlier builds installed as Traccar: `/opt/traccar`, `conf/traccar.xml`, service `traccar`. The Linux installer moves
+such an installation to `/opt/optiradar` as a whole (configuration, H2 database in `data/`, logs), renames the
+configuration file to `conf/optiradar.xml` and replaces the `traccar` service with `optiradar`. Nothing in the
+configuration keys, the database or the API changes, so OptiNexus and OptiFleet keep working without changes.
+On Windows, uninstall the old Traccar service first and copy its `conf` and `data` folders into the new OptiRadar
+folder. Docker deployments keep their own compose file; the samples in `docker/compose/` are for new installations.

@@ -1,12 +1,11 @@
-Traccar is a free and open source GPS tracking system.
+OptiRadar is the connected vehicle tracking server of the Opti product family,
+based on the open source Traccar server (Apache License 2.0).
 
-Installation instructions are available on the official website:
+Linux   - run optiradar.run as root; it installs to /opt/optiradar and enables the
+          optiradar service (an older /opt/traccar installation is moved over).
+Windows - run optiradar-setup.exe; it installs the OptiRadar service.
+Other   - unzip optiradar-other-<version>.zip and start
+          java -jar tracker-server.jar conf/optiradar.xml
 
-Windows - https://www.traccar.org/windows/
-Linux   - https://www.traccar.org/linux/
-Docker  - https://www.traccar.org/docker/
-Other   - https://www.traccar.org/manual-installation/
-
-If you have any questions or problems visit support page:
-
-https://www.traccar.org/support/
+Configuration: conf/optiradar.xml. Single sign-on and events with OptiNexus:
+see docs/optinexus-sso.md in the OptiRadar repository.

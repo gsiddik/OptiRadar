@@ -4,7 +4,7 @@
 
     <!--
         Sample configuration for running OptiRadar together with OptiNexus (single sign-on, central logout).
-        Copy it over conf/traccar.xml and replace the values marked CHANGE. Password sign-in keeps working
+        Copy it over conf/optiradar.xml and replace the values marked CHANGE. Password sign-in keeps working
         next to it: the integration only adds the OpenID path. Guide: docs/optinexus-sso.md
     -->
 
@@ -28,7 +28,7 @@
 
     <!--
         Accounts created through SSO or self-registration may not add devices of their own; a tenant user only sees
-        the devices of the tenant group. 0 = no new devices, -1 = unlimited (the Traccar default).
+        the devices of the tenant group. 0 = no new devices, -1 = unlimited (the built-in default).
         It applies to accounts created from now on, not to existing ones.
     -->
     <entry key='users.defaultDeviceLimit'>0</entry>
@@ -36,7 +36,7 @@
     <!--
         Report device online/offline, geofence enter/exit and overspeed events to OptiNexus. Create a service account
         for OptiRadar in OptiNexus (scope event.write) and register the events there first.
-        event.status.enable is Traccar's own switch for online/offline/unknown events.
+        event.status.enable is OptiRadar's own switch for online/offline/unknown events.
     -->
     <entry key='event.status.enable'>true</entry>
     <entry key='optinexus.events.enable'>false</entry>

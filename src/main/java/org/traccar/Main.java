@@ -88,7 +88,7 @@ public final class Main {
         }
 
         if (args.length > 0 && args[0].startsWith("--")) {
-            WindowsService windowsService = new WindowsService("traccar") {
+            WindowsService windowsService = new WindowsService("optiradar") {
                 @Override
                 public void run() {
                     Main.run(configFile);
@@ -96,7 +96,7 @@ public final class Main {
             };
             switch (args[0]) {
                 case "--install":
-                    windowsService.install("traccar", null, null, null, null, configFile);
+                    windowsService.install("optiradar", null, null, null, null, configFile);
                     return;
                 case "--uninstall":
                     windowsService.uninstall();

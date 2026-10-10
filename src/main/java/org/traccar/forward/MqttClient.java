@@ -44,7 +44,7 @@ public class MqttClient {
 
         String host = uri.getHost();
         int port = uri.getPort();
-        Mqtt5ClientBuilder builder = Mqtt5Client.builder().identifier("traccar-" + UUID.randomUUID())
+        Mqtt5ClientBuilder builder = Mqtt5Client.builder().identifier("optiradar-" + UUID.randomUUID())
                 .serverHost(host).serverPort(port).simpleAuth(simpleAuth).automaticReconnectWithDefaultConfig();
 
         client = builder.buildAsync();

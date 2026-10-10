@@ -1,5 +1,5 @@
-[submodule "traccar-web"]
-	path = traccar-web
-	url = ../traccar-web.git
-	branch = master
+[submodule "optiradar-web"]
+	path = optiradar-web
+	url = ../OptiRadar-web.git
+	branch = main
 	ignore = all
