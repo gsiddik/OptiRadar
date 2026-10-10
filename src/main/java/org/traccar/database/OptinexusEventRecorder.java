@@ -45,7 +45,7 @@ import java.util.UUID;
  * delivered later by {@link OptinexusEventRelay}, so an event is never lost because OptiNexus is down and the
  * processing of positions never waits for it.
  *
- * <p>A device that stopped reporting is "offline" for OptiNexus whether Traccar saw the connection close
+ * <p>A device that stopped reporting is "offline" for OptiNexus whether OptiRadar saw the connection close
  * (deviceOffline) or only no data within the status timeout (deviceUnknown); the payload keeps the difference in
  * {@code status}.
  *

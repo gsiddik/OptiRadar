@@ -62,7 +62,7 @@ public class McpServerHolder implements AutoCloseable {
                 .build();
 
         server = McpServer.async(transport)
-                .serverInfo("traccar-mcp", "1.0.0")
+                .serverInfo("optiradar-mcp", "1.0.0")
                 .capabilities(capabilities)
                 .tools(toolRegistry.getTools().stream().map(this::createApiTool).toList())
                 .build();

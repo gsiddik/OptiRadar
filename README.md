@@ -1,38 +1,48 @@
-# [Traccar](https://www.traccar.org)
+# OptiRadar
 
 ## Overview
 
-Traccar is a free, open source GPS tracking platform. This repository contains the Java-based back-end server, which supports more than 200 GPS protocols and 2000+ models of GPS tracking devices out of the box. Traccar works with any major SQL database and provides an easy to use [REST API](https://www.traccar.org/traccar-api/).
+OptiRadar is the connected vehicle tracking platform of the Opti product family. This repository contains the
+Java-based back-end server, which supports more than 200 GPS protocols and 2000+ models of GPS tracking devices out
+of the box, works with any major SQL database and provides a REST and WebSocket API (`openapi.yaml`).
 
-Traccar is built for anyone who needs to track vehicles, assets, or people: fleet operators, GPS tracking resellers running their own white-label platform, and individuals tracking their own devices. You can [self-host it for free](https://www.traccar.org/install-vps/), or use [official managed hosting](https://www.traccar.org/pricing/) if you'd rather not run a server yourself.
-
-| Web Dashboard |
+| Sign-in page |
 |---|
-| ![Traccar web dashboard](.github/screenshot.png) |
+| ![OptiRadar sign-in page](.github/screenshot.png) |
 
-Other parts of the Traccar platform:
+Other parts of OptiRadar:
 
-- [Traccar web app](https://github.com/traccar/traccar-web) - the browser-based tracking dashboard
-- [Traccar Manager app](https://github.com/traccar/traccar-manager) - mobile app for viewing your tracked devices
+- [OptiRadar web app](https://github.com/gsiddik/OptiRadar-web) - the browser-based tracking dashboard
 
-There is also a set of mobile apps for tracking mobile devices themselves:
+## OptiNexus integration
 
-- [Traccar Client app](https://github.com/traccar/traccar-client)
+OptiRadar signs users in through OptiNexus (OpenID Connect, one device group per tenant), takes part in central
+logout and automatic deactivation, and reports device and geofence events to OptiNexus. OptiFleet receives odometer
+readings from OptiRadar through the OptiNexus API Gateway. Setup and behavior: [docs/optinexus-sso.md](docs/optinexus-sso.md),
+sample configuration: `setup/optiradar-optinexus.xml`.
 
 ## Quick Start
 
-Run Traccar with a production-grade MySQL database using Docker Compose:
+Build the image from `docker/` (or run the release workflow, which publishes `ghcr.io/<owner>/optiradar`), then run
+it with a production-grade database using one of the Docker Compose samples:
 
 ```shell
-curl -o compose.yaml https://raw.githubusercontent.com/traccar/traccar/master/docker/compose/traccar-mysql.yaml
-docker compose up -d
+docker compose -f docker/compose/optiradar-mysql.yaml up -d
 ```
 
-Traccar will be available on port `8082`. See the [Docker documentation](https://www.traccar.org/docker/) for other configuration options, or [try the live demo](https://www.traccar.org/demo-server/) without installing anything.
+OptiRadar will be available on port `8082`.
+
+## Build
+
+```shell
+./gradlew assemble
+```
+
+This builds `target/tracker-server.jar` and its libraries in `target/lib`. Start it with
+`java -jar target/tracker-server.jar setup/optiradar.xml`. The web app is built from the OptiRadar-web repository
+and served from the folder in `web.path`.
 
 ## Features
-
-Some of the available features include:
 
 - Real-time GPS tracking
 - Driver behaviour monitoring
@@ -42,20 +52,15 @@ Some of the available features include:
 - Account and device management
 - Email and SMS support
 
-## Build
+## Naming
 
-Please read the [build from source documentation](https://www.traccar.org/build/) on the official website.
+The product, installers, service, configuration file and Docker image are called OptiRadar. A few identifiers keep the
+upstream name on purpose, because renaming them would break existing code, data or third-party services: the Java
+package `org.traccar`, the `tc_` database table prefix, the `traccar` notificator and map matcher types and the
+`notificator.traccar.key` setting (they refer to the Traccar cloud services at traccar.org), and the default AMQP
+exchange name `traccar` used by forwarding.
 
-## Community
+## Credits and license
 
-- [Forums](https://www.traccar.org/forums/)
-- [Documentation](https://www.traccar.org/documentation/)
-
-## Team
-
-- Anton Tananaev ([anton@traccar.org](mailto:anton@traccar.org))
-- Andrey Kunitsyn ([andrey@traccar.org](mailto:andrey@traccar.org))
-
-## License
-
-Apache License, Version 2.0. See [LICENSE.txt](https://github.com/traccar/traccar/blob/master/LICENSE.txt) for details.
+OptiRadar is based on the open source [Traccar](https://github.com/traccar/traccar) server by Anton Tananaev and
+Andrey Kunitsyn. It is distributed under the Apache License, Version 2.0; see [LICENSE.txt](LICENSE.txt).

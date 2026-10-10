@@ -4,24 +4,25 @@ services:
     image: timescale/timescaledb:latest-pg17
     restart: unless-stopped
     environment:
-      POSTGRES_DB: traccar
-      POSTGRES_USER: traccar
-      POSTGRES_PASSWORD: traccar
+      POSTGRES_DB: optiradar
+      POSTGRES_USER: optiradar
+      POSTGRES_PASSWORD: optiradar
       TIMESCALEDB_TELEMETRY: "off"
     volumes:
-      - /opt/traccar/data:/var/lib/postgresql/data
+      - /opt/optiradar/data:/var/lib/postgresql/data
 
-  traccar:
-    image: traccar/traccar:latest
+  optiradar:
+    # Image built from docker/Dockerfile.* (the stock traccar/traccar image has no OptiNexus integration)
+    image: ghcr.io/gsiddik/optiradar:latest
     restart: unless-stopped
     depends_on:
       - database
     environment:
       CONFIG_USE_ENVIRONMENT_VARIABLES: "true"
       DATABASE_DRIVER: org.postgresql.Driver
-      DATABASE_URL: jdbc:postgresql://database:5432/traccar
-      DATABASE_USER: traccar
-      DATABASE_PASSWORD: traccar
+      DATABASE_URL: jdbc:postgresql://database:5432/optiradar
+      DATABASE_USER: optiradar
+      DATABASE_PASSWORD: optiradar
     healthcheck:
       test: [ "CMD", "wget", "-q", "--spider", "http://localhost:8082/api/health" ]
       interval: 2m
@@ -32,7 +33,7 @@ services:
       - "8082:8082"
       - "5000-5500:5000-5500"
     volumes:
-      - /opt/traccar/logs:/opt/traccar/logs
+      - /opt/optiradar/logs:/opt/optiradar/logs
 
   autoheal:
     image: willfarrell/autoheal:latest

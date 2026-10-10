@@ -5,14 +5,15 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_RANDOM_ROOT_PASSWORD: "yes"
-      MYSQL_DATABASE: traccar
-      MYSQL_USER: traccar
-      MYSQL_PASSWORD: traccar
+      MYSQL_DATABASE: optiradar
+      MYSQL_USER: optiradar
+      MYSQL_PASSWORD: optiradar
     volumes:
-      - /opt/traccar/data:/var/lib/mysql
+      - /opt/optiradar/data:/var/lib/mysql
 
-  traccar:
-    image: traccar/traccar:latest
+  optiradar:
+    # Image built from docker/Dockerfile.* (the stock traccar/traccar image has no OptiNexus integration)
+    image: ghcr.io/gsiddik/optiradar:latest
     restart: unless-stopped
     depends_on:
       - database
@@ -20,7 +21,7 @@ services:
       CONFIG_USE_ENVIRONMENT_VARIABLES: "true"
       DATABASE_DRIVER: com.mysql.cj.jdbc.Driver
       DATABASE_URL: >-
-        jdbc:mysql://database:3306/traccar
+        jdbc:mysql://database:3306/optiradar
         ?zeroDateTimeBehavior=round
         &serverTimezone=UTC
         &allowPublicKeyRetrieval=true
@@ -30,8 +31,8 @@ services:
         &useUnicode=yes
         &characterEncoding=UTF-8
         &sessionVariables=sql_mode=''
-      DATABASE_USER: traccar
-      DATABASE_PASSWORD: traccar
+      DATABASE_USER: optiradar
+      DATABASE_PASSWORD: optiradar
     healthcheck:
       test: [ "CMD", "wget", "-q", "--spider", "http://localhost:8082/api/health" ]
       interval: 2m
@@ -42,7 +43,7 @@ services:
       - "8082:8082"
       - "5000-5500:5000-5500"
     volumes:
-      - /opt/traccar/logs:/opt/traccar/logs
+      - /opt/optiradar/logs:/opt/optiradar/logs
 
   autoheal:
     image: willfarrell/autoheal:latest

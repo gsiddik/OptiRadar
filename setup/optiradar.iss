@@ -1,8 +1,8 @@
 [Setup]
-AppName=Traccar
+AppName=OptiRadar
 AppVersion=6.16.0
-DefaultDirName={pf}\Traccar
-OutputBaseFilename=traccar-setup
+DefaultDirName={pf}\OptiRadar
+OutputBaseFilename=optiradar-setup
 ArchitecturesInstallIn64BitMode=x64
 
 [Dirs]
@@ -13,7 +13,7 @@ Name: "{app}\logs"
 Source: "out\*"; DestDir: "{app}"; Flags: recursesubdirs
 
 [Run]
-Filename: "{app}\jre\bin\java.exe"; Parameters: "-jar ""{app}\tracker-server.jar"" --install .\conf\traccar.xml"; Flags: runhidden
+Filename: "{app}\jre\bin\java.exe"; Parameters: "-jar ""{app}\tracker-server.jar"" --install .\conf\optiradar.xml"; Flags: runhidden
 
 [UninstallRun]
 Filename: "{app}\jre\bin\java.exe"; Parameters: "-jar ""{app}\tracker-server.jar"" --uninstall"; Flags: runhidden

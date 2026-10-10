@@ -1,28 +1,14 @@
 openapi: 3.1.0
 info:
-  title: Traccar
-  description: Traccar GPS tracking server API documentation. To use the API you need to have a server instance. For testing purposes you can use one of free [demo servers](https://www.traccar.org/demo-server/). For production use you can install your own server or get a [subscription service](https://www.traccar.org/product/tracking-server/).
-  contact:
-    name: Traccar Support
-    url: https://www.traccar.org/
-    email: support@traccar.org
+  title: OptiRadar
+  description: OptiRadar connected vehicle tracking server API documentation. To use the API you need a running OptiRadar server. OptiRadar is based on the open source Traccar server and keeps its API.
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
   version: '6.16.0'
 servers:
-  - url: https://demo.traccar.org/api
-    description: Demo Server 1
-  - url: https://demo2.traccar.org/api
-    description: Demo Server 2
-  - url: https://demo3.traccar.org/api
-    description: Demo Server 3
-  - url: https://demo4.traccar.org/api
-    description: Demo Server 4
-  - url: https://server.traccar.org/api
-    description: Subscription Server
   - url: http://{host}:{port}/api
-    description: Other Server
+    description: OptiRadar Server
     variables:
       host:
         default: localhost
@@ -1139,8 +1125,7 @@ paths:
       operationId: getPositions
       summary: Fetch a list of Positions
       description: >-
-        We strongly recommend using [Traccar WebSocket
-        API](https://www.traccar.org/traccar-api/) instead of periodically
+        We strongly recommend using the WebSocket API (`/api/socket`) instead of periodically
         polling positions endpoint. Without any params, it returns a list of
         last known positions for all the user's Devices. _from_ and _to_ fields
         are not required with _id_.
@@ -3999,7 +3984,7 @@ components:
           description: Default map zoom level
         version:
           type: string
-          description: Traccar server version string
+          description: OptiRadar server version string
         forceSettings:
           type: boolean
           description: Forces users to use the server-wide settings instead of their own
@@ -4067,7 +4052,7 @@ components:
         id:
           type: integer
           format: int64
-          description: Unique identifier assigned by Traccar
+          description: Unique identifier assigned by OptiRadar
         name:
           type: string
           description: Human friendly device label
