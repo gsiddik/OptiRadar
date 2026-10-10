@@ -388,11 +388,11 @@ public final class Keys {
     /**
      * Address for uploading aggregated anonymous usage statistics. Uploaded information is the same as what you can
      * see on the statistics screen in the web app. It does not include any sensitive data (e.g. locations).
+     * Not set by default, so nothing is uploaded; statistics are still kept in the local database.
      */
     public static final ConfigKey<String> SERVER_STATISTICS = new StringConfigKey(
             "server.statistics",
-            List.of(KeyType.CONFIG),
-            "https://www.traccar.org/analytics/");
+            List.of(KeyType.CONFIG));
 
     /**
      * Fuel drop threshold value. When fuel level drops from one position to another by more than this value, an event
