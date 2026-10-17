@@ -36,7 +36,6 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.util.Date;
 import java.util.LinkedHashMap;
-import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -56,8 +55,6 @@ import java.util.UUID;
 public class OptinexusEventRecorder {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OptinexusEventRecorder.class);
-
-    private static final int MAX_GROUP_DEPTH = 10;
 
     static final Map<String, String> EVENT_KEYS = Map.of(
             Event.TYPE_DEVICE_ONLINE, "optiradar.device.online",
@@ -130,23 +127,7 @@ public class OptinexusEventRecorder {
      * The identifier must be a UUID (that is what OptiNexus uses), anything else counts as no tenant.
      */
     String tenantOf(Device device) {
-        long groupId = device.getGroupId();
-        for (int depth = 0; groupId > 0 && depth < MAX_GROUP_DEPTH; depth++) {
-            Group group = cacheManager.getObject(Group.class, groupId);
-            if (group == null) {
-                return null;
-            }
-            String value = group.getString(tenantAttribute);
-            if (value != null && !value.isBlank()) {
-                try {
-                    return UUID.fromString(value.trim()).toString().toLowerCase(Locale.ROOT);
-                } catch (IllegalArgumentException e) {
-                    return null;
-                }
-            }
-            groupId = group.getGroupId();
-        }
-        return null;
+        return DeviceTenants.tenantOf(device, id -> cacheManager.getObject(Group.class, id), tenantAttribute);
     }
 
     Map<String, Object> data(Event event, Device device, Position position) {

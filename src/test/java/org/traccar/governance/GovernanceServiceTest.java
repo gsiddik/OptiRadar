@@ -729,6 +729,7 @@ public class GovernanceServiceTest extends GovernanceTestBase {
         assertEquals(first, second, "a denied client that keeps calling does not rewrite the user each time");
 
         clock.addAndGet(TimeUnit.SECONDS.toMillis(61));
+        Thread.sleep(5);   // the stored time is wall-clock milliseconds: make sure it can differ
         service.endSessions(user.getId());
         long third = storage.getObject(User.class, new Request(new Columns.All(),
                 new Condition.Equals("id", user.getId()))).getLong(OpenIdLifecycle.SESSIONS_NOT_BEFORE);

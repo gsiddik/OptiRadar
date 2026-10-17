@@ -155,6 +155,12 @@ Target side (when OptiRadar is the product being opened): `GET /api/session/open
 by the server as before; the hint never changes them. OptiRadar accepts no other target: there is no `next`/`return_to`
 parameter, and `redirect_uri` is only honoured for the mobile scheme when `openid.allowMobileRedirect` is on.
 
+## Telematics read model
+
+`GET /api/telematics/v1/latest` is governed like live positions (`optiradar.live.view`) and is one of the GET routes a
+read-only integration account may call (`GovernanceCoverageTest` lists it). The tenant of each entry is derived from device
+ownership; the request never names the tenant. Scope, units, time rules and the proposed scope matrix: `docs/telematics.md`.
+
 ## Native flags in Nexus mode (what happens to Traccar's `administrator`, `readonly`, `disabled`, limits)
 
 | Native flag | Governed + OpenID-linked tenant user | Local account (operator) |

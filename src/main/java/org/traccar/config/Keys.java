@@ -1074,6 +1074,15 @@ public final class Keys {
             List.of(KeyType.CONFIG));
 
     /**
+     * Seconds after which the measurement of a device is reported as stale in the telematics read model
+     * (GET /api/telematics/v1/latest). It only labels the data; nothing is dropped. Default is 15 minutes.
+     */
+    public static final ConfigKey<Long> TELEMATICS_STALE_SECONDS = new LongConfigKey(
+            "telematics.staleSeconds",
+            List.of(KeyType.CONFIG),
+            900L);
+
+    /**
      * If no data is reported by a device for the given amount of time, status changes from online to unknown. Value is
      * in seconds. Default timeout is 10 minutes.
      */

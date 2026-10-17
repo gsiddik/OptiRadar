@@ -39,7 +39,7 @@ public class GovernanceCoverageTest {
     /** GET routes a read-only integration account (the OptiNexus telematics connector) may call. */
     private static final Set<String> INTEGRATION_ROUTES = Set.of(
             "DeviceResource.get", "DeviceResource.getSingle", "GroupResource.get", "GroupResource.getSingle",
-            "PositionResource.getJson");
+            "PositionResource.getJson", "TelematicsResource.latest");
 
     private record Route(Class<?> type, Method method, String verb) {
         String name() {
