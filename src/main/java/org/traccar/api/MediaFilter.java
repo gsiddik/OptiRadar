@@ -22,6 +22,9 @@ import org.traccar.api.security.LoginResult;
 import org.traccar.api.security.LoginService;
 import org.traccar.api.security.PermissionsService;
 import org.traccar.database.StatisticsManager;
+import org.traccar.governance.Catalog;
+import org.traccar.governance.GovernanceException;
+import org.traccar.governance.GovernanceService;
 import org.traccar.model.Device;
 import org.traccar.storage.Storage;
 import org.traccar.storage.StorageException;
@@ -39,6 +42,7 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.List;
 
 @Singleton
 public class MediaFilter implements Filter {
@@ -47,11 +51,13 @@ public class MediaFilter implements Filter {
     private final StatisticsManager statisticsManager;
     private final LoginService loginService;
     private final Provider<PermissionsService> permissionsServiceProvider;
+    private final GovernanceService governance;
 
     @Inject
     public MediaFilter(
             Storage storage, StatisticsManager statisticsManager, LoginService loginService,
-            Provider<PermissionsService> permissionsServiceProvider) {
+            Provider<PermissionsService> permissionsServiceProvider, GovernanceService governance) {
+        this.governance = governance;
         this.storage = storage;
         this.statisticsManager = statisticsManager;
         this.loginService = loginService;
@@ -74,6 +80,11 @@ public class MediaFilter implements Filter {
             long userId = loginResult.getUser().getId();
             statisticsManager.registerRequest(userId);
 
+            if (governance.enabled()) {
+                // Media recorded by a device is part of its stored history.
+                governance.require(governance.principal(userId), List.of(Catalog.POSITIONS_VIEW));
+            }
+
             String path = ((HttpServletRequest) request).getPathInfo();
             String[] parts = path != null ? path.split("/") : null;
             if (parts != null && parts.length >= 2) {
@@ -87,6 +98,8 @@ public class MediaFilter implements Filter {
             }
 
             httpResponse.sendError(HttpServletResponse.SC_FORBIDDEN);
+        } catch (GovernanceException e) {
+            httpResponse.sendError(e.getStatus() == 401 ? 401 : e.getStatus() == 503 ? 503 : 403);
         } catch (SecurityException | StorageException e) {
             httpResponse.setStatus(HttpServletResponse.SC_FORBIDDEN);
         }

@@ -51,4 +51,14 @@
     <entry key='optinexus.clientId'>CHANGE-service-account-client-id</entry>
     <entry key='optinexus.clientSecret'>CHANGE-service-account-client-secret</entry>
 
+    <!--
+        Central governance: OptiNexus decides what each tenant user may do (permissions and tenant entitlements, cached
+        at most 300 seconds, refused when OptiNexus cannot answer). Needs the service account above with the scopes
+        authorization.check and commercial.read, and openid.tenantClaim. Guide: docs/governance.md
+        List the read-only account that the OptiNexus telematics connector uses in governance.integrationUsers.
+    -->
+    <entry key='governance.enable'>false</entry>
+    <entry key='governance.ttl'>300</entry>
+    <entry key='governance.integrationUsers'>telematics-connector@example.com</entry>
+
 </properties>

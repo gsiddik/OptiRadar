@@ -47,9 +47,12 @@ import com.nimbusds.openid.connect.sdk.UserInfoRequest;
 import com.nimbusds.openid.connect.sdk.UserInfoResponse;
 import com.nimbusds.openid.connect.sdk.claims.UserInfo;
 import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.traccar.api.security.LoginService;
 import org.traccar.config.Config;
 import org.traccar.config.Keys;
+import org.traccar.governance.GovernanceService;
 import org.traccar.helper.LogAction;
 import org.traccar.helper.SessionHelper;
 import org.traccar.helper.WebHelper;
@@ -81,6 +84,8 @@ import java.util.Set;
  */
 public class OpenIdProvider {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(OpenIdProvider.class);
+
     static final String BROWSER_KEY = "openidBrowser";
     private static final String MOBILE_SCHEME = "org.traccar.manager";
 
@@ -97,7 +102,9 @@ public class OpenIdProvider {
     private final ClientAuthentication clientAuth;
     private final URI callbackUrl;
     private final URI baseUrl;
-    private final Metadata metadata;
+    private final MetadataSource metadataSource;
+    private volatile Metadata metadata;
+    private volatile long metadataRetryAt;
     private final boolean allowMobileRedirect;
     private final String adminGroup;
     private final String allowGroup;
@@ -109,25 +116,47 @@ public class OpenIdProvider {
     private final OpenIdLifecycle lifecycle;
     private final LogAction actionLogger;
     private final OpenIdPendingLogins pendingLogins;
+    private final GovernanceService governance;
 
     @Inject
     public OpenIdProvider(
             Config config, LoginService loginService, LogAction actionLogger, OpenIdTenantLinker tenantLinker,
+            OpenIdLifecycle lifecycle, GovernanceService governance)
+            throws IOException, URISyntaxException, GeneralException {
+        this(config, loginService, actionLogger, tenantLinker, lifecycle, () -> resolveMetadata(config),
+                firstResolution(config), new OpenIdPendingLogins(), governance);
+    }
+
+    public OpenIdProvider(
+            Config config, LoginService loginService, LogAction actionLogger, OpenIdTenantLinker tenantLinker,
             OpenIdLifecycle lifecycle)
             throws IOException, URISyntaxException, GeneralException {
-        this(config, loginService, actionLogger, tenantLinker, lifecycle, resolveMetadata(config),
-                new OpenIdPendingLogins());
+        this(config, loginService, actionLogger, tenantLinker, lifecycle, null);
     }
 
     OpenIdProvider(
             Config config, LoginService loginService, LogAction actionLogger, OpenIdTenantLinker tenantLinker,
             OpenIdLifecycle lifecycle, Metadata metadata, OpenIdPendingLogins pendingLogins) {
+        this(config, loginService, actionLogger, tenantLinker, lifecycle, null, metadata, pendingLogins, null);
+    }
 
+    /**
+     * @param source asks the provider for its metadata; used again later when {@code initial} is null because the
+     *               provider could not be reached at startup (the server still starts, and sign-in works as soon as
+     *               the provider answers)
+     */
+    OpenIdProvider(
+            Config config, LoginService loginService, LogAction actionLogger, OpenIdTenantLinker tenantLinker,
+            OpenIdLifecycle lifecycle, MetadataSource source, Metadata initial, OpenIdPendingLogins pendingLogins,
+            GovernanceService governance) {
+
+        this.governance = governance;
         this.loginService = loginService;
         this.tenantLinker = tenantLinker;
         this.lifecycle = lifecycle;
         this.actionLogger = actionLogger;
-        this.metadata = metadata;
+        this.metadataSource = source;
+        this.metadata = initial;
         this.pendingLogins = pendingLogins;
 
         force = config.getBoolean(Keys.OPENID_FORCE);
@@ -142,6 +171,55 @@ public class OpenIdProvider {
         allowGroup = config.getString(Keys.OPENID_ALLOW_GROUP);
         groupsClaimName = config.getString(Keys.OPENID_GROUPS_CLAIM_NAME);
         tenantClaim = config.getString(Keys.OPENID_TENANT_CLAIM);
+    }
+
+    /**
+     * Asks the provider for its metadata.
+     */
+    @FunctionalInterface
+    interface MetadataSource {
+        Metadata resolve() throws Exception;
+    }
+
+    private static final long METADATA_RETRY_MILLIS = 10_000;
+
+    /**
+     * The metadata at startup. A provider that cannot be reached now is not a reason to stop the server (users with a
+     * valid session keep working); a configuration that can never work still stops it.
+     */
+    private static Metadata firstResolution(Config config) throws IOException, URISyntaxException, GeneralException {
+        try {
+            return resolveMetadata(config);
+        } catch (IllegalStateException | URISyntaxException e) {
+            throw e;
+        } catch (Exception e) {
+            LOGGER.warn("The OpenID provider cannot be reached yet ({}); sign-in starts working when it answers",
+                    e.getMessage());
+            return null;
+        }
+    }
+
+    private Metadata metadata() throws GeneralSecurityException {
+        Metadata current = metadata;
+        if (current != null) {
+            return current;
+        }
+        synchronized (this) {
+            if (metadata != null) {
+                return metadata;
+            }
+            if (System.currentTimeMillis() < metadataRetryAt) {
+                throw new GeneralSecurityException("The OpenID provider cannot be reached");
+            }
+            try {
+                metadata = metadataSource.resolve();
+                return metadata;
+            } catch (Exception e) {
+                metadataRetryAt = System.currentTimeMillis() + METADATA_RETRY_MILLIS;
+                LOGGER.warn("The OpenID provider cannot be reached: {}", e.getMessage());
+                throw new GeneralSecurityException("The OpenID provider cannot be reached", e);
+            }
+        }
     }
 
     private static Metadata resolveMetadata(Config config)
@@ -190,6 +268,7 @@ public class OpenIdProvider {
      * @param mobileRedirect redirect address of the mobile app, only honored when openid.allowMobileRedirect is set
      */
     public URI createAuthUri(HttpServletRequest request, String mobileRedirect) throws GeneralSecurityException {
+        Metadata provider = metadata();
         String redirectUri = callbackUrl.toString();
         String browser = null;
         if (mobileRedirect != null) {
@@ -214,7 +293,7 @@ public class OpenIdProvider {
             scope.add(groupsClaimName);
         }
         return new AuthenticationRequest.Builder(new ResponseType("code"), scope, clientId, URI.create(redirectUri))
-                .endpointURI(metadata.authUrl())
+                .endpointURI(provider.authUrl())
                 .state(new State(pending.state()))
                 .nonce(new Nonce(pending.nonce()))
                 .codeChallenge(verifier, CodeChallengeMethod.S256)
@@ -227,7 +306,7 @@ public class OpenIdProvider {
             throws IOException, ParseException, GeneralSecurityException {
 
         AuthorizationGrant codeGrant = new AuthorizationCodeGrant(code, redirectUri, verifier);
-        TokenRequest tokenRequest = new TokenRequest(metadata.tokenUrl(), clientAuth, codeGrant, null);
+        TokenRequest tokenRequest = new TokenRequest(metadata().tokenUrl(), clientAuth, codeGrant, null);
 
         HTTPResponse tokenResponse = tokenRequest.toHTTPRequest().send();
         TokenResponse token = OIDCTokenResponseParser.parse(tokenResponse);
@@ -241,7 +320,7 @@ public class OpenIdProvider {
     protected UserInfo getUserInfo(
             BearerAccessToken token) throws IOException, ParseException, GeneralSecurityException {
 
-        HTTPResponse httpResponse = new UserInfoRequest(metadata.userInfoUrl(), token)
+        HTTPResponse httpResponse = new UserInfoRequest(metadata().userInfoUrl(), token)
                 .toHTTPRequest()
                 .send();
 
@@ -270,7 +349,7 @@ public class OpenIdProvider {
             throw new GeneralSecurityException("Invalid redirect URI");
         }
         String issuerParameter = first(parameters, "iss");
-        if (issuerParameter != null && !issuerParameter.equals(metadata.issuer().getValue())) {
+        if (issuerParameter != null && !issuerParameter.equals(metadata().issuer().getValue())) {
             throw new GeneralSecurityException("Unexpected OpenID issuer");
         }
 
@@ -287,7 +366,7 @@ public class OpenIdProvider {
 
         OIDCTokenResponse tokens = getToken(redirectUri, authCode, new CodeVerifier(pending.codeVerifier()));
 
-        String subject = metadata.idTokens().verify(tokens.getOIDCTokens().getIDTokenString(), pending.nonce());
+        String subject = metadata().idTokens().verify(tokens.getOIDCTokens().getIDTokenString(), pending.nonce());
 
         BearerAccessToken bearerToken = tokens.getOIDCTokens().getBearerAccessToken();
 
@@ -298,6 +377,12 @@ public class OpenIdProvider {
 
         List<String> userGroups = userInfo.getStringListClaim(groupsClaimName);
         Boolean administrator = adminGroup != null && userGroups != null ? userGroups.contains(adminGroup) : null;
+        boolean governed = governance != null && governance.enabled() && tenantClaim != null;
+        if (governed) {
+            // A tenant user is never a native administrator (that role sees every tenant); what the user may do
+            // comes from OptiNexus. Operators are local accounts and are not created from the provider.
+            administrator = null;
+        }
 
         if (!(Boolean.TRUE.equals(administrator) || allowGroup == null
                 || (userGroups != null && userGroups.contains(allowGroup)))) {
@@ -315,9 +400,13 @@ public class OpenIdProvider {
         }
 
         OpenIdIdentities.Claims claims = new OpenIdIdentities.Claims(
-                metadata.issuer().getValue(), subject, userInfo.getEmailAddress(),
+                metadata().issuer().getValue(), subject, userInfo.getEmailAddress(),
                 Boolean.TRUE.equals(userInfo.getEmailVerified()));
         User user = loginService.login(request, claims, userInfo.getName(), administrator).getUser();
+
+        if (governed && user.getAdministrator()) {
+            throw new GeneralSecurityException("A native administrator account cannot sign in as a tenant user");
+        }
 
         if (tenantGroup != null) {
             if (tenantLinker.link(request, user, tenantGroup)) {
@@ -327,6 +416,10 @@ public class OpenIdProvider {
             }
             tenantLinker.rememberApps(user, OpenIdApps.parse(userInfo.getClaim("apps")));
             lifecycle.rememberLogoutUrl(user, logoutUrl());
+        }
+
+        if (governed) {
+            governance.admit(user);
         }
 
         SessionHelper.userLogin(actionLogger, request, user, null);
@@ -351,7 +444,8 @@ public class OpenIdProvider {
      * every application. Null when the provider does not publish an end session endpoint.
      */
     public String logoutUrl() {
-        URI endSessionUrl = metadata.endSessionUrl();
+        Metadata resolved = metadata;
+        URI endSessionUrl = resolved != null ? resolved.endSessionUrl() : null;
         if (endSessionUrl == null) {
             return null;
         }
@@ -366,10 +460,11 @@ public class OpenIdProvider {
      * @throws GeneralSecurityException if the token is not valid, or the provider is not set up for the feature
      */
     public void handleBackchannelLogout(String logoutToken) throws Exception {
-        if (metadata.logoutTokens() == null) {
+        Metadata current = metadata();
+        if (current.logoutTokens() == null) {
             throw new GeneralSecurityException("Back-channel logout needs openid.issuerUrl");
         }
-        lifecycle.apply(metadata.logoutTokens().verify(logoutToken));
+        lifecycle.apply(current.logoutTokens().verify(logoutToken));
     }
 
     public boolean getForce() {

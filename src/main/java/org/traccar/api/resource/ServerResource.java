@@ -20,6 +20,7 @@ import org.traccar.config.Config;
 import org.traccar.config.Keys;
 import org.traccar.database.OpenIdProvider;
 import org.traccar.geocoder.Geocoder;
+import org.traccar.governance.Governed;
 import org.traccar.helper.Log;
 import org.traccar.helper.LogAction;
 import org.traccar.helper.model.UserUtil;
@@ -59,6 +60,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.TimeZone;
 
+@Governed(access = Governed.Access.OPERATOR)
 @Path("server")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -122,6 +124,7 @@ public class ServerResource extends BaseResource {
         return Response.ok(server).build();
     }
 
+    @Governed(access = Governed.Access.SELF)
     @Path("geocode")
     @GET
     public String geocode(@QueryParam("latitude") double latitude, @QueryParam("longitude") double longitude) {
@@ -132,6 +135,7 @@ public class ServerResource extends BaseResource {
         }
     }
 
+    @Governed(access = Governed.Access.SELF)
     @Path("timezones")
     @GET
     public Collection<String> timezones() {

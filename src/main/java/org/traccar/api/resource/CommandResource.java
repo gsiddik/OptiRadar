@@ -25,6 +25,8 @@ import org.traccar.api.ExtendedObjectResource;
 import org.traccar.command.CommandSender;
 import org.traccar.command.CommandSenderManager;
 import org.traccar.database.CommandsManager;
+import org.traccar.governance.Catalog;
+import org.traccar.governance.Governed;
 import org.traccar.helper.LogAction;
 import org.traccar.helper.model.DeviceUtil;
 import org.traccar.model.Command;
@@ -57,6 +59,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+@Governed(read = Catalog.COMMANDS_VIEW, write = Catalog.COMMANDS_MANAGE)
 @Path("commands")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -117,6 +120,7 @@ public class CommandResource extends ExtendedObjectResource<Command> {
         }).toList();
     }
 
+    @Governed(value = Catalog.COMMANDS_SEND)
     @POST
     @Path("send")
     public Response send(Command entity, @QueryParam("groupId") long groupId) throws Exception {

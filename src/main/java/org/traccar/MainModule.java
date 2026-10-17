@@ -85,6 +85,7 @@ import org.traccar.geolocation.GoogleGeolocationProvider;
 import org.traccar.geolocation.OpenCellIdGeolocationProvider;
 import org.traccar.geolocation.UniversalGeolocationProvider;
 import org.traccar.geolocation.UnwiredGeolocationProvider;
+import org.traccar.governance.GovernanceService;
 import org.traccar.handler.CopyAttributesHandler;
 import org.traccar.handler.FilterHandler;
 import org.traccar.handler.GeocoderHandler;
@@ -210,10 +211,10 @@ public class MainModule extends AbstractModule {
     @Provides
     public static OpenIdProvider provideOpenIDProvider(
             Config config, LoginService loginService, LogAction actionLogger, OpenIdTenantLinker tenantLinker,
-            OpenIdLifecycle lifecycle)
+            OpenIdLifecycle lifecycle, GovernanceService governance)
             throws IOException, URISyntaxException, GeneralException {
         if (config.hasKey(Keys.OPENID_CLIENT_ID)) {
-            return new OpenIdProvider(config, loginService, actionLogger, tenantLinker, lifecycle);
+            return new OpenIdProvider(config, loginService, actionLogger, tenantLinker, lifecycle, governance);
         }
         return null;
     }

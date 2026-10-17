@@ -17,6 +17,8 @@
 package org.traccar.api.resource;
 
 import org.traccar.api.SimpleObjectResource;
+import org.traccar.governance.Catalog;
+import org.traccar.governance.Governed;
 import org.traccar.helper.LogAction;
 import org.traccar.model.Event;
 import org.traccar.model.Position;
@@ -58,6 +60,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.stream.Stream;
 
+@Governed(read = Catalog.REPORTS_SCHEDULE, write = Catalog.REPORTS_SCHEDULE)
 @Path("reports")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -119,6 +122,7 @@ public class ReportResource extends SimpleObjectResource<Report> {
         }
     }
 
+    @Governed(value = Catalog.REPORTS_VIEW)
     @Path("combined")
     @GET
     public Collection<CombinedReportItem> getCombined(
@@ -131,6 +135,7 @@ public class ReportResource extends SimpleObjectResource<Report> {
         return combinedReportProvider.getObjects(getUserId(), deviceIds, groupIds, from, to);
     }
 
+    @Governed(value = Catalog.REPORTS_VIEW)
     @Path("route")
     @GET
     public Stream<Position> getRoute(
@@ -143,6 +148,7 @@ public class ReportResource extends SimpleObjectResource<Report> {
         return routeReportProvider.getObjects(getUserId(), deviceIds, groupIds, from, to);
     }
 
+    @Governed(value = Catalog.REPORTS_EXPORT)
     @Path("route")
     @GET
     @Produces(EXCEL)
@@ -159,6 +165,7 @@ public class ReportResource extends SimpleObjectResource<Report> {
         });
     }
 
+    @Governed(value = Catalog.REPORTS_EXPORT)
     @Path("route/{type:xlsx|mail}")
     @GET
     @Produces(EXCEL)
@@ -171,6 +178,7 @@ public class ReportResource extends SimpleObjectResource<Report> {
         return getRouteExcel(deviceIds, groupIds, from, to, type.equals("mail"));
     }
 
+    @Governed(value = Catalog.REPORTS_VIEW)
     @Path("events")
     @GET
     public Stream<Event> getEvents(
@@ -185,6 +193,7 @@ public class ReportResource extends SimpleObjectResource<Report> {
         return eventsReportProvider.getObjects(getUserId(), deviceIds, groupIds, types, alarms, from, to);
     }
 
+    @Governed(value = Catalog.REPORTS_EXPORT)
     @Path("events")
     @GET
     @Produces(EXCEL)
@@ -203,6 +212,7 @@ public class ReportResource extends SimpleObjectResource<Report> {
         });
     }
 
+    @Governed(value = Catalog.REPORTS_EXPORT)
     @Path("events/{type:xlsx|mail}")
     @GET
     @Produces(EXCEL)
@@ -217,6 +227,7 @@ public class ReportResource extends SimpleObjectResource<Report> {
         return getEventsExcel(deviceIds, groupIds, types, alarms, from, to, type.equals("mail"));
     }
 
+    @Governed(value = Catalog.REPORTS_VIEW)
     @Path("geofences")
     @GET
     public Collection<GeofenceReportItem> getGeofences(
@@ -230,6 +241,7 @@ public class ReportResource extends SimpleObjectResource<Report> {
         return geofenceReportProvider.getObjects(getUserId(), deviceIds, groupIds, geofenceIds, from, to);
     }
 
+    @Governed(value = Catalog.REPORTS_VIEW)
     @Path("summary")
     @GET
     public Collection<SummaryReportItem> getSummary(
@@ -243,6 +255,7 @@ public class ReportResource extends SimpleObjectResource<Report> {
         return summaryReportProvider.getObjects(getUserId(), deviceIds, groupIds, from, to, daily);
     }
 
+    @Governed(value = Catalog.REPORTS_EXPORT)
     @Path("summary")
     @GET
     @Produces(EXCEL)
@@ -260,6 +273,7 @@ public class ReportResource extends SimpleObjectResource<Report> {
         });
     }
 
+    @Governed(value = Catalog.REPORTS_EXPORT)
     @Path("summary/{type:xlsx|mail}")
     @GET
     @Produces(EXCEL)
@@ -273,6 +287,7 @@ public class ReportResource extends SimpleObjectResource<Report> {
         return getSummaryExcel(deviceIds, groupIds, from, to, daily, type.equals("mail"));
     }
 
+    @Governed(value = Catalog.REPORTS_VIEW)
     @Path("trips")
     @GET
     public Collection<TripReportItem> getTrips(
@@ -285,6 +300,7 @@ public class ReportResource extends SimpleObjectResource<Report> {
         return tripsReportProvider.getObjects(getUserId(), deviceIds, groupIds, from, to);
     }
 
+    @Governed(value = Catalog.REPORTS_EXPORT)
     @Path("trips")
     @GET
     @Produces(EXCEL)
@@ -301,6 +317,7 @@ public class ReportResource extends SimpleObjectResource<Report> {
         });
     }
 
+    @Governed(value = Catalog.REPORTS_EXPORT)
     @Path("trips/{type:xlsx|mail}")
     @GET
     @Produces(EXCEL)
@@ -313,6 +330,7 @@ public class ReportResource extends SimpleObjectResource<Report> {
         return getTripsExcel(deviceIds, groupIds, from, to, type.equals("mail"));
     }
 
+    @Governed(value = Catalog.REPORTS_VIEW)
     @Path("stops")
     @GET
     public Collection<StopReportItem> getStops(
@@ -325,6 +343,7 @@ public class ReportResource extends SimpleObjectResource<Report> {
         return stopsReportProvider.getObjects(getUserId(), deviceIds, groupIds, from, to);
     }
 
+    @Governed(value = Catalog.REPORTS_EXPORT)
     @Path("stops")
     @GET
     @Produces(EXCEL)
@@ -341,6 +360,7 @@ public class ReportResource extends SimpleObjectResource<Report> {
         });
     }
 
+    @Governed(value = Catalog.REPORTS_EXPORT)
     @Path("stops/{type:xlsx|mail}")
     @GET
     @Produces(EXCEL)
@@ -353,6 +373,7 @@ public class ReportResource extends SimpleObjectResource<Report> {
         return getStopsExcel(deviceIds, groupIds, from, to, type.equals("mail"));
     }
 
+    @Governed(value = Catalog.REPORTS_EXPORT)
     @Path("devices/{type:xlsx|mail}")
     @GET
     @Produces(EXCEL)

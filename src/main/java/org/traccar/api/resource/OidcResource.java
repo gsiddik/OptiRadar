@@ -22,6 +22,7 @@ import org.traccar.api.security.OidcSessionManager.AuthorizationCode;
 import org.traccar.api.signature.TokenManager;
 import org.traccar.config.Config;
 import org.traccar.config.Keys;
+import org.traccar.governance.Governed;
 import org.traccar.model.User;
 import org.traccar.storage.StorageException;
 
@@ -51,6 +52,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@Governed(access = Governed.Access.OPERATOR)
 @Path("oidc")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_FORM_URLENCODED)

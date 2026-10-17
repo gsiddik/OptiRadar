@@ -22,6 +22,9 @@ import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.api.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.traccar.governance.Catalog;
+import org.traccar.governance.GovernanceException;
+import org.traccar.governance.GovernanceService;
 import org.traccar.helper.model.PositionUtil;
 import org.traccar.model.Device;
 import org.traccar.model.Event;
@@ -36,6 +39,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class AsyncSocket implements Session.Listener.AutoDemanding, ConnectionManager.UpdateListener {
 
@@ -50,15 +55,83 @@ public class AsyncSocket implements Session.Listener.AutoDemanding, ConnectionMa
     private final ConnectionManager connectionManager;
     private final Storage storage;
     private final long userId;
+    private final GovernanceService governance;
+    private final ExecutorService executor;
+    private final AtomicBoolean refreshing = new AtomicBoolean();
 
     private boolean includeLogs;
     private Session session;
 
+    // What OptiNexus allows this connection (only used while governance is enabled). Data is only sent while the
+    // answer is valid; when it runs out the connection asks again and closes if the answer is not a clear yes.
+    private volatile long validUntil = Long.MAX_VALUE;
+    private volatile boolean eventsAllowed = true;
+    private volatile boolean logsAllowed = true;
+
     public AsyncSocket(ObjectMapper objectMapper, ConnectionManager connectionManager, Storage storage, long userId) {
+        this(objectMapper, connectionManager, storage, userId, null, null, null);
+    }
+
+    public AsyncSocket(
+            ObjectMapper objectMapper, ConnectionManager connectionManager, Storage storage, long userId,
+            GovernanceService governance, ExecutorService executor, GovernanceService.Context context) {
         this.objectMapper = objectMapper;
         this.connectionManager = connectionManager;
         this.storage = storage;
         this.userId = userId;
+        this.governance = governance != null && governance.enabled() ? governance : null;
+        this.executor = executor;
+        if (this.governance != null && context != null) {
+            apply(context);
+        }
+    }
+
+    private void apply(GovernanceService.Context context) {
+        boolean operator = "operator".equals(context.kind());
+        eventsAllowed = context.permissions().contains(Catalog.EVENTS_VIEW);
+        logsAllowed = operator;
+        validUntil = operator ? Long.MAX_VALUE : context.expiresAt();
+    }
+
+    /**
+     * Whether data may be sent now. Never blocks (the caller holds the connection manager's lock): when the answer
+     * from OptiNexus ran out it starts asking again and sends nothing meanwhile.
+     */
+    private boolean permitted() {
+        if (governance == null || System.currentTimeMillis() < validUntil) {
+            return true;
+        }
+        refreshAsync();
+        return false;
+    }
+
+    private void refreshAsync() {
+        if (governance == null || executor == null || !refreshing.compareAndSet(false, true)) {
+            return;
+        }
+        executor.submit(() -> {
+            try {
+                GovernanceService.Context context = governance.context(governance.principal(userId));
+                if (context.permissions().contains(Catalog.LIVE_VIEW) || "operator".equals(context.kind())) {
+                    apply(context);
+                } else {
+                    close(1008, "governance_permission_denied");
+                }
+            } catch (GovernanceException e) {
+                close(e.getStatus() == 503 ? 1013 : 1008, e.getCode());
+            } catch (RuntimeException e) {
+                close(1011, "governance_error");
+            } finally {
+                refreshing.set(false);
+            }
+        });
+    }
+
+    private void close(int code, String reason) {
+        Session current = session;
+        if (current != null && current.isOpen()) {
+            current.close(code, reason, Callback.NOOP);
+        }
     }
 
     @Override
@@ -86,7 +159,7 @@ public class AsyncSocket implements Session.Listener.AutoDemanding, ConnectionMa
         try {
             JsonNode json = objectMapper.readTree(message);
             if (json.hasNonNull("logs")) {
-                includeLogs = json.get("logs").asBoolean();
+                includeLogs = json.get("logs").asBoolean() && logsAllowed;
             }
         } catch (JsonProcessingException e) {
             LOGGER.warn("Socket JSON parsing error", e);
@@ -102,27 +175,38 @@ public class AsyncSocket implements Session.Listener.AutoDemanding, ConnectionMa
 
     @Override
     public void onKeepalive() {
-        sendData(new HashMap<>());
+        if (permitted()) {
+            sendData(new HashMap<>());
+        }
     }
 
     @Override
     public void onUpdateDevice(Device device) {
+        if (!permitted()) {
+            return;
+        }
         sendData(Map.of(KEY_DEVICES, List.of(device)));
     }
 
     @Override
     public void onUpdatePosition(Position position) {
+        if (!permitted()) {
+            return;
+        }
         sendData(Map.of(KEY_POSITIONS, List.of(position)));
     }
 
     @Override
     public void onUpdateEvent(Event event) {
+        if (!eventsAllowed || !permitted()) {
+            return;
+        }
         sendData(Map.of(KEY_EVENTS, List.of(event)));
     }
 
     @Override
     public void onUpdateLog(LogRecord record) {
-        if (includeLogs) {
+        if (includeLogs && logsAllowed && permitted()) {
             sendData(Map.of(KEY_LOGS, List.of(record)));
         }
     }

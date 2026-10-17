@@ -18,6 +18,8 @@ package org.traccar.api.resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.traccar.api.ExtendedObjectResource;
+import org.traccar.governance.Catalog;
+import org.traccar.governance.Governed;
 import org.traccar.model.Event;
 import org.traccar.model.ManagedUser;
 import org.traccar.model.Notification;
@@ -50,6 +52,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+@Governed(read = Catalog.NOTIFICATIONS_VIEW, write = Catalog.NOTIFICATIONS_MANAGE)
 @Path("notifications")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -90,6 +93,7 @@ public class NotificationResource extends ExtendedObjectResource<Notification> {
                 .collect(Collectors.toUnmodifiableSet());
     }
 
+    @Governed(value = Catalog.NOTIFICATIONS_SEND)
     @POST
     @Path("test")
     public Response testMessage() throws ExecutionException, InterruptedException, StorageException {
@@ -100,6 +104,7 @@ public class NotificationResource extends ExtendedObjectResource<Notification> {
         return Response.noContent().build();
     }
 
+    @Governed(value = Catalog.NOTIFICATIONS_SEND)
     @POST
     @Path("test/{notificator}")
     public Response testMessage(@PathParam("notificator") String notificator)
@@ -109,6 +114,7 @@ public class NotificationResource extends ExtendedObjectResource<Notification> {
         return Response.noContent().build();
     }
 
+    @Governed(value = Catalog.NOTIFICATIONS_SEND)
     @POST
     @Path("send/{notificator}")
     public Response sendMessage(

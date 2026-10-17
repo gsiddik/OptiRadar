@@ -21,6 +21,10 @@ import org.eclipse.jetty.ee10.websocket.server.JettyWebSocketServletFactory;
 import org.traccar.api.security.LoginService;
 import org.traccar.config.Config;
 import org.traccar.config.Keys;
+import org.traccar.governance.Catalog;
+import org.traccar.governance.GovernanceException;
+import org.traccar.governance.GovernanceService;
+import org.traccar.governance.GovernedPrincipal;
 import org.traccar.session.ConnectionManager;
 import org.traccar.storage.Storage;
 import org.traccar.storage.StorageException;
@@ -31,6 +35,7 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 
 @Singleton
 public class AsyncSocketServlet extends JettyWebSocketServlet {
@@ -40,11 +45,15 @@ public class AsyncSocketServlet extends JettyWebSocketServlet {
     private final ConnectionManager connectionManager;
     private final Storage storage;
     private final LoginService loginService;
+    private final GovernanceService governance;
+    private final ExecutorService executor;
 
     @Inject
     public AsyncSocketServlet(
             Config config, ObjectMapper objectMapper, ConnectionManager connectionManager, Storage storage,
-            LoginService loginService) {
+            LoginService loginService, GovernanceService governance, ExecutorService executor) {
+        this.governance = governance;
+        this.executor = executor;
         this.config = config;
         this.objectMapper = objectMapper;
         this.connectionManager = connectionManager;
@@ -75,10 +84,26 @@ public class AsyncSocketServlet extends JettyWebSocketServlet {
                     userId = null;
                 }
             }
-            if (userId != null) {
+            if (userId == null) {
+                return null;
+            }
+            if (!governance.enabled()) {
                 return new AsyncSocket(objectMapper, connectionManager, storage, userId);
             }
-            return null;
+            try {
+                // The live feed is a feature of its own: it needs the permission and the tenant's entitlement.
+                GovernedPrincipal principal = governance.principal(userId);
+                governance.require(principal, List.of(Catalog.LIVE_VIEW));
+                return new AsyncSocket(objectMapper, connectionManager, storage, userId, governance, executor,
+                        governance.context(principal));
+            } catch (GovernanceException e) {
+                try {
+                    resp.sendError(e.getStatus() == 503 ? 503 : 403, e.getCode());
+                } catch (IOException ignored) {
+                    // the connection is gone; nothing to tell
+                }
+                return null;
+            }
         });
     }
 

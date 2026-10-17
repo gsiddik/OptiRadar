@@ -17,6 +17,8 @@
 package org.traccar.api.resource;
 
 import org.traccar.api.ExtendedObjectResource;
+import org.traccar.governance.Catalog;
+import org.traccar.governance.Governed;
 import org.traccar.handler.ComputedAttributesProvider;
 import org.traccar.model.Attribute;
 import org.traccar.model.Device;
@@ -39,6 +41,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.List;
 
+@Governed(read = Catalog.ATTRIBUTES_VIEW, write = Catalog.ATTRIBUTES_MANAGE)
 @Path("attributes/computed")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)

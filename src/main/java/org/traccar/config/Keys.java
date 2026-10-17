@@ -1020,6 +1020,60 @@ public final class Keys {
             7);
 
     /**
+     * Enforce the permissions and module/feature entitlements OptiNexus grants (see docs/governance.md). Needs
+     * optinexus.baseUrl, optinexus.clientId and optinexus.clientSecret (a service account with the
+     * authorization.check and commercial.read scopes) and openid.tenantClaim. Off by default: without it OptiRadar
+     * behaves as before and does not call OptiNexus for access decisions.
+     */
+    public static final ConfigKey<Boolean> GOVERNANCE_ENABLE = new BooleanConfigKey(
+            "governance.enable",
+            List.of(KeyType.CONFIG),
+            false);
+
+    /**
+     * Application code of OptiRadar in OptiNexus. Default is optiradar; permission keys always start with it.
+     */
+    public static final ConfigKey<String> GOVERNANCE_APPLICATION_CODE = new StringConfigKey(
+            "governance.applicationCode",
+            List.of(KeyType.CONFIG),
+            "optiradar");
+
+    /**
+     * Longest time in seconds a grant or entitlement received from OptiNexus is used. Never more than 300; the
+     * lifetime OptiNexus reports (ttl_seconds) applies when it is shorter. After it passes the answer is fetched
+     * again, and if OptiNexus cannot be reached access is denied. Default is 300.
+     */
+    public static final ConfigKey<Integer> GOVERNANCE_TTL = new IntegerConfigKey(
+            "governance.ttl",
+            List.of(KeyType.CONFIG),
+            300);
+
+    /**
+     * Milliseconds to wait for a connection to OptiNexus when deciding access. Default is 2000.
+     */
+    public static final ConfigKey<Integer> GOVERNANCE_CONNECT_TIMEOUT = new IntegerConfigKey(
+            "governance.connectTimeout",
+            List.of(KeyType.CONFIG),
+            2000);
+
+    /**
+     * Milliseconds to wait for an answer from OptiNexus when deciding access. Default is 4000.
+     */
+    public static final ConfigKey<Integer> GOVERNANCE_READ_TIMEOUT = new IntegerConfigKey(
+            "governance.readTimeout",
+            List.of(KeyType.CONFIG),
+            4000);
+
+    /**
+     * Comma-separated emails or logins of local read-only accounts that machine integrations (the OptiNexus telematics
+     * connector) sign in with. They are not linked to an OptiNexus identity and may only read the devices, groups and
+     * latest positions. Without this list such accounts are refused while governance is enabled.
+     */
+    public static final ConfigKey<String> GOVERNANCE_INTEGRATION_USERS = new StringConfigKey(
+            "governance.integrationUsers",
+            List.of(KeyType.CONFIG));
+
+    /**
      * If no data is reported by a device for the given amount of time, status changes from online to unknown. Value is
      * in seconds. Default timeout is 10 minutes.
      */

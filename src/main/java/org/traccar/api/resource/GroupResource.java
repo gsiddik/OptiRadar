@@ -16,6 +16,8 @@
 package org.traccar.api.resource;
 
 import org.traccar.api.SimpleObjectResource;
+import org.traccar.governance.Catalog;
+import org.traccar.governance.Governed;
 import org.traccar.model.Group;
 
 import jakarta.ws.rs.Consumes;
@@ -24,6 +26,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import java.util.List;
 
+@Governed(read = Catalog.GROUPS_VIEW, write = Catalog.GROUPS_MANAGE, integration = true)
 @Path("groups")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)

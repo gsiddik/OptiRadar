@@ -19,6 +19,7 @@ import com.warrenstrange.googleauth.GoogleAuthenticator;
 import org.traccar.api.BaseObjectResource;
 import org.traccar.config.Config;
 import org.traccar.config.Keys;
+import org.traccar.governance.Governed;
 import org.traccar.helper.LogAction;
 import org.traccar.helper.SessionHelper;
 import org.traccar.helper.model.UserUtil;
@@ -50,6 +51,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Stream;
 
+@Governed(access = Governed.Access.SELF, selfOnly = true)
 @Path("users")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -68,6 +70,7 @@ public class UserResource extends BaseObjectResource<User> {
         super(User.class);
     }
 
+    @Governed(access = Governed.Access.OPERATOR)
     @GET
     public Stream<User> get(
             @QueryParam("userId") long userId, @QueryParam("deviceId") long deviceId,
@@ -140,6 +143,7 @@ public class UserResource extends BaseObjectResource<User> {
         return Response.ok(entity).build();
     }
 
+    @Governed(access = Governed.Access.OPERATOR)
     @Path("{id}")
     @DELETE
     public Response remove(@PathParam("id") long id) throws Exception {

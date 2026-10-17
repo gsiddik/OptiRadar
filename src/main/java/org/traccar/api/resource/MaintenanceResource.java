@@ -17,6 +17,8 @@
 package org.traccar.api.resource;
 
 import org.traccar.api.ExtendedObjectResource;
+import org.traccar.governance.Catalog;
+import org.traccar.governance.Governed;
 import org.traccar.model.Maintenance;
 
 import jakarta.ws.rs.Consumes;
@@ -25,6 +27,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import java.util.List;
 
+@Governed(read = Catalog.MAINTENANCE_VIEW, write = Catalog.MAINTENANCE_MANAGE)
 @Path("maintenance")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)

@@ -1,0 +1,425 @@
+{
+  "manifest_version" : "2.0",
+  "revision" : "2026.10.17-1",
+  "application" : {
+    "application_code" : "optiradar",
+    "name" : "OptiRadar",
+    "description" : "GPS telematics and vehicle tracking."
+  },
+  "capabilities" : [ {
+    "code" : "optiradar.tracking",
+    "type" : "MODULE",
+    "name" : "Live tracking and history",
+    "description" : "Map, live positions and route history.",
+    "sort_order" : 10,
+    "parent_code" : null
+  }, {
+    "code" : "optiradar.tracking.live",
+    "type" : "FEATURE",
+    "name" : "Live map",
+    "description" : "Live positions and device status on the map.",
+    "sort_order" : 20,
+    "parent_code" : "optiradar.tracking"
+  }, {
+    "code" : "optiradar.tracking.history",
+    "type" : "FEATURE",
+    "name" : "Route history and replay",
+    "description" : "Stored positions of a device over a period, and the replay of a route.",
+    "sort_order" : 30,
+    "parent_code" : "optiradar.tracking"
+  }, {
+    "code" : "optiradar.tracking.export",
+    "type" : "FEATURE",
+    "name" : "Position export",
+    "description" : "Download stored positions as KML, KMZ, CSV or GPX.",
+    "sort_order" : 40,
+    "parent_code" : "optiradar.tracking"
+  }, {
+    "code" : "optiradar.devices",
+    "type" : "MODULE",
+    "name" : "Devices and groups",
+    "description" : "The tenant's tracked assets and how they are grouped.",
+    "sort_order" : 50,
+    "parent_code" : null
+  }, {
+    "code" : "optiradar.devices.registry",
+    "type" : "FEATURE",
+    "name" : "Device and group registry",
+    "description" : "List, create, edit and remove devices and groups of the tenant.",
+    "sort_order" : 60,
+    "parent_code" : "optiradar.devices"
+  }, {
+    "code" : "optiradar.devices.odometer",
+    "type" : "FEATURE",
+    "name" : "Odometer and engine hours",
+    "description" : "Overwrite the accumulated distance and engine hours of a device.",
+    "sort_order" : 70,
+    "parent_code" : "optiradar.devices"
+  }, {
+    "code" : "optiradar.devices.sharing",
+    "type" : "FEATURE",
+    "name" : "Share links",
+    "description" : "Time-limited public links to a device or group location.",
+    "sort_order" : 80,
+    "parent_code" : "optiradar.devices"
+  }, {
+    "code" : "optiradar.devices.video",
+    "type" : "FEATURE",
+    "name" : "Video streams",
+    "description" : "Live video streams of devices that have a camera.",
+    "sort_order" : 90,
+    "parent_code" : "optiradar.devices"
+  }, {
+    "code" : "optiradar.geofencing",
+    "type" : "MODULE",
+    "name" : "Geofences",
+    "description" : "Zones that raise events when an asset enters or leaves.",
+    "sort_order" : 100,
+    "parent_code" : null
+  }, {
+    "code" : "optiradar.geofencing.zones",
+    "type" : "FEATURE",
+    "name" : "Geofence zones",
+    "description" : "List, draw, edit and remove geofences.",
+    "sort_order" : 110,
+    "parent_code" : "optiradar.geofencing"
+  }, {
+    "code" : "optiradar.reporting",
+    "type" : "MODULE",
+    "name" : "Reports",
+    "description" : "Analysis of trips, stops, routes, events and summaries.",
+    "sort_order" : 120,
+    "parent_code" : null
+  }, {
+    "code" : "optiradar.reporting.standard",
+    "type" : "FEATURE",
+    "name" : "Reports on screen",
+    "description" : "Run and read reports in the application.",
+    "sort_order" : 130,
+    "parent_code" : "optiradar.reporting"
+  }, {
+    "code" : "optiradar.reporting.export",
+    "type" : "FEATURE",
+    "name" : "Report export and e-mail",
+    "description" : "Download reports as spreadsheets or send them by e-mail.",
+    "sort_order" : 140,
+    "parent_code" : "optiradar.reporting"
+  }, {
+    "code" : "optiradar.reporting.scheduled",
+    "type" : "FEATURE",
+    "name" : "Scheduled reports",
+    "description" : "Reports that are prepared and announced by e-mail on a calendar.",
+    "sort_order" : 150,
+    "parent_code" : "optiradar.reporting"
+  }, {
+    "code" : "optiradar.commands",
+    "type" : "MODULE",
+    "name" : "Device commands",
+    "description" : "Instructions sent to the tracker in the vehicle.",
+    "sort_order" : 160,
+    "parent_code" : null
+  }, {
+    "code" : "optiradar.commands.send",
+    "type" : "FEATURE",
+    "name" : "Send commands",
+    "description" : "Send a command to a device and see which commands it supports.",
+    "sort_order" : 170,
+    "parent_code" : "optiradar.commands"
+  }, {
+    "code" : "optiradar.commands.saved",
+    "type" : "FEATURE",
+    "name" : "Saved commands",
+    "description" : "Maintain the list of saved commands.",
+    "sort_order" : 180,
+    "parent_code" : "optiradar.commands"
+  }, {
+    "code" : "optiradar.alerts",
+    "type" : "MODULE",
+    "name" : "Events and notifications",
+    "description" : "What happened and who is told about it.",
+    "sort_order" : 190,
+    "parent_code" : null
+  }, {
+    "code" : "optiradar.alerts.events",
+    "type" : "FEATURE",
+    "name" : "Event history",
+    "description" : "Read events such as alarms, overspeed and geofence crossings.",
+    "sort_order" : 200,
+    "parent_code" : "optiradar.alerts"
+  }, {
+    "code" : "optiradar.alerts.notifications",
+    "type" : "FEATURE",
+    "name" : "Notification rules",
+    "description" : "Rules that tell users about events by e-mail, push or other channels.",
+    "sort_order" : 210,
+    "parent_code" : "optiradar.alerts"
+  }, {
+    "code" : "optiradar.alerts.announcements",
+    "type" : "FEATURE",
+    "name" : "Announcements",
+    "description" : "Send a message to users and test the notification channels.",
+    "sort_order" : 220,
+    "parent_code" : "optiradar.alerts"
+  }, {
+    "code" : "optiradar.operations",
+    "type" : "MODULE",
+    "name" : "Drivers, maintenance and automation",
+    "description" : "People, service schedules and rules around the vehicles.",
+    "sort_order" : 230,
+    "parent_code" : null
+  }, {
+    "code" : "optiradar.operations.drivers",
+    "type" : "FEATURE",
+    "name" : "Drivers",
+    "description" : "Driver registry and driver assignment.",
+    "sort_order" : 240,
+    "parent_code" : "optiradar.operations"
+  }, {
+    "code" : "optiradar.operations.maintenance",
+    "type" : "FEATURE",
+    "name" : "Maintenance",
+    "description" : "Service schedules driven by distance, hours or time.",
+    "sort_order" : 250,
+    "parent_code" : "optiradar.operations"
+  }, {
+    "code" : "optiradar.operations.calendars",
+    "type" : "FEATURE",
+    "name" : "Calendars",
+    "description" : "Calendars that limit when notifications and reports apply.",
+    "sort_order" : 260,
+    "parent_code" : "optiradar.operations"
+  }, {
+    "code" : "optiradar.operations.attributes",
+    "type" : "FEATURE",
+    "name" : "Computed attributes",
+    "description" : "Expressions that derive values from incoming positions.",
+    "sort_order" : 270,
+    "parent_code" : "optiradar.operations"
+  }, {
+    "code" : "optiradar.operations.orders",
+    "type" : "FEATURE",
+    "name" : "Orders",
+    "description" : "Work orders for drivers and devices.",
+    "sort_order" : 280,
+    "parent_code" : "optiradar.operations"
+  }, {
+    "code" : "optiradar.access",
+    "type" : "MODULE",
+    "name" : "Access management",
+    "description" : "Users and roles of the tenant inside OptiRadar, kept in OptiNexus.",
+    "sort_order" : 290,
+    "parent_code" : null
+  }, {
+    "code" : "optiradar.access.users",
+    "type" : "FEATURE",
+    "name" : "Users and roles",
+    "description" : "Create users and custom roles through OptiNexus delegation.",
+    "sort_order" : 300,
+    "parent_code" : "optiradar.access"
+  } ],
+  "permissions" : [ {
+    "permission_key" : "optiradar.live.view",
+    "name" : "View live positions",
+    "description" : "Receive live positions, device status and the latest position of each device.",
+    "capability_code" : "optiradar.tracking.live",
+    "delegable" : true
+  }, {
+    "permission_key" : "optiradar.positions.view",
+    "name" : "View position history",
+    "description" : "Read the stored positions of a device over a period and replay a route.",
+    "capability_code" : "optiradar.tracking.history",
+    "delegable" : true
+  }, {
+    "permission_key" : "optiradar.positions.delete",
+    "name" : "Delete stored positions",
+    "description" : "Permanently delete stored positions. Destroys history.",
+    "capability_code" : "optiradar.tracking.history",
+    "delegable" : false
+  }, {
+    "permission_key" : "optiradar.positions.export",
+    "name" : "Export positions",
+    "description" : "Download positions as KML, KMZ, CSV or GPX.",
+    "capability_code" : "optiradar.tracking.export",
+    "delegable" : true
+  }, {
+    "permission_key" : "optiradar.devices.view",
+    "name" : "View devices",
+    "description" : "List and open devices.",
+    "capability_code" : "optiradar.devices.registry",
+    "delegable" : true
+  }, {
+    "permission_key" : "optiradar.devices.manage",
+    "name" : "Manage devices",
+    "description" : "Create, edit and remove devices and their images.",
+    "capability_code" : "optiradar.devices.registry",
+    "delegable" : true
+  }, {
+    "permission_key" : "optiradar.groups.view",
+    "name" : "View groups",
+    "description" : "List and open groups.",
+    "capability_code" : "optiradar.devices.registry",
+    "delegable" : true
+  }, {
+    "permission_key" : "optiradar.groups.manage",
+    "name" : "Manage groups",
+    "description" : "Create, edit and remove groups below the tenant group.",
+    "capability_code" : "optiradar.devices.registry",
+    "delegable" : true
+  }, {
+    "permission_key" : "optiradar.devices.odometer.set",
+    "name" : "Set odometer and engine hours",
+    "description" : "Overwrite accumulated distance and engine hours, which other products may read.",
+    "capability_code" : "optiradar.devices.odometer",
+    "delegable" : false
+  }, {
+    "permission_key" : "optiradar.sharing.manage",
+    "name" : "Create share links",
+    "description" : "Create public links that show a device location without signing in.",
+    "capability_code" : "optiradar.devices.sharing",
+    "delegable" : false
+  }, {
+    "permission_key" : "optiradar.stream.view",
+    "name" : "View video streams",
+    "description" : "Watch live video of a device.",
+    "capability_code" : "optiradar.devices.video",
+    "delegable" : true
+  }, {
+    "permission_key" : "optiradar.geofences.view",
+    "name" : "View geofences",
+    "description" : "List and open geofences.",
+    "capability_code" : "optiradar.geofencing.zones",
+    "delegable" : true
+  }, {
+    "permission_key" : "optiradar.geofences.manage",
+    "name" : "Manage geofences",
+    "description" : "Create, edit and remove geofences and attach them to devices.",
+    "capability_code" : "optiradar.geofencing.zones",
+    "delegable" : true
+  }, {
+    "permission_key" : "optiradar.reports.view",
+    "name" : "Run reports",
+    "description" : "Run and read reports in the application.",
+    "capability_code" : "optiradar.reporting.standard",
+    "delegable" : true
+  }, {
+    "permission_key" : "optiradar.reports.export",
+    "name" : "Export reports",
+    "description" : "Download reports as spreadsheets or e-mail them.",
+    "capability_code" : "optiradar.reporting.export",
+    "delegable" : true
+  }, {
+    "permission_key" : "optiradar.reports.schedule",
+    "name" : "Schedule reports",
+    "description" : "Create and run scheduled reports.",
+    "capability_code" : "optiradar.reporting.scheduled",
+    "delegable" : true
+  }, {
+    "permission_key" : "optiradar.commands.view",
+    "name" : "View commands",
+    "description" : "See saved commands and the commands a device supports.",
+    "capability_code" : "optiradar.commands.send",
+    "delegable" : true
+  }, {
+    "permission_key" : "optiradar.commands.send",
+    "name" : "Send commands",
+    "description" : "Send a command to a device, for example an engine cut-off. Acts on the vehicle.",
+    "capability_code" : "optiradar.commands.send",
+    "delegable" : false
+  }, {
+    "permission_key" : "optiradar.commands.manage",
+    "name" : "Manage saved commands",
+    "description" : "Create, edit and remove saved commands.",
+    "capability_code" : "optiradar.commands.saved",
+    "delegable" : false
+  }, {
+    "permission_key" : "optiradar.events.view",
+    "name" : "View events",
+    "description" : "Read events and receive notifications that describe them.",
+    "capability_code" : "optiradar.alerts.events",
+    "delegable" : true
+  }, {
+    "permission_key" : "optiradar.notifications.view",
+    "name" : "View notification rules",
+    "description" : "List notification rules and channels.",
+    "capability_code" : "optiradar.alerts.notifications",
+    "delegable" : true
+  }, {
+    "permission_key" : "optiradar.notifications.manage",
+    "name" : "Manage notification rules",
+    "description" : "Create, edit and remove notification rules and attach them to devices.",
+    "capability_code" : "optiradar.alerts.notifications",
+    "delegable" : true
+  }, {
+    "permission_key" : "optiradar.notifications.send",
+    "name" : "Send announcements",
+    "description" : "Send a message to other users and test channels. Reaches people outside the caller.",
+    "capability_code" : "optiradar.alerts.announcements",
+    "delegable" : false
+  }, {
+    "permission_key" : "optiradar.drivers.view",
+    "name" : "View drivers",
+    "description" : "List drivers.",
+    "capability_code" : "optiradar.operations.drivers",
+    "delegable" : true
+  }, {
+    "permission_key" : "optiradar.drivers.manage",
+    "name" : "Manage drivers",
+    "description" : "Create, edit and remove drivers and assign them.",
+    "capability_code" : "optiradar.operations.drivers",
+    "delegable" : true
+  }, {
+    "permission_key" : "optiradar.maintenance.view",
+    "name" : "View maintenance",
+    "description" : "List maintenance schedules.",
+    "capability_code" : "optiradar.operations.maintenance",
+    "delegable" : true
+  }, {
+    "permission_key" : "optiradar.maintenance.manage",
+    "name" : "Manage maintenance",
+    "description" : "Create, edit and remove maintenance schedules.",
+    "capability_code" : "optiradar.operations.maintenance",
+    "delegable" : true
+  }, {
+    "permission_key" : "optiradar.calendars.view",
+    "name" : "View calendars",
+    "description" : "List calendars.",
+    "capability_code" : "optiradar.operations.calendars",
+    "delegable" : true
+  }, {
+    "permission_key" : "optiradar.calendars.manage",
+    "name" : "Manage calendars",
+    "description" : "Create, edit and remove calendars.",
+    "capability_code" : "optiradar.operations.calendars",
+    "delegable" : true
+  }, {
+    "permission_key" : "optiradar.attributes.view",
+    "name" : "View computed attributes",
+    "description" : "List computed attributes.",
+    "capability_code" : "optiradar.operations.attributes",
+    "delegable" : true
+  }, {
+    "permission_key" : "optiradar.attributes.manage",
+    "name" : "Manage computed attributes",
+    "description" : "Create, edit, test and remove expressions that run on the server for every position.",
+    "capability_code" : "optiradar.operations.attributes",
+    "delegable" : false
+  }, {
+    "permission_key" : "optiradar.orders.view",
+    "name" : "View orders",
+    "description" : "List orders.",
+    "capability_code" : "optiradar.operations.orders",
+    "delegable" : true
+  }, {
+    "permission_key" : "optiradar.orders.manage",
+    "name" : "Manage orders",
+    "description" : "Create, edit and remove orders.",
+    "capability_code" : "optiradar.operations.orders",
+    "delegable" : true
+  }, {
+    "permission_key" : "optiradar.access.manage",
+    "name" : "Manage users and roles",
+    "description" : "Open the users and roles pages; OptiNexus still requires the Admin Tenant flag for every change.",
+    "capability_code" : "optiradar.access.users",
+    "delegable" : false
+  } ]
+}

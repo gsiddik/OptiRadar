@@ -24,6 +24,7 @@ import org.traccar.api.security.LoginService;
 import org.traccar.api.signature.TokenManager;
 import org.traccar.database.OpenIdLifecycle;
 import org.traccar.database.OpenIdProvider;
+import org.traccar.governance.Governed;
 import org.traccar.helper.LogAction;
 import org.traccar.helper.SessionHelper;
 import org.traccar.model.RevokedToken;
@@ -55,6 +56,7 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.Date;
 
+@Governed(access = Governed.Access.SELF)
 @Path("session")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
@@ -108,6 +110,7 @@ public class SessionResource extends BaseResource {
         throw new WebApplicationException(Response.status(Response.Status.NOT_FOUND).build());
     }
 
+    @Governed(access = Governed.Access.OPERATOR)
     @Path("{id}")
     @GET
     public User get(@PathParam("id") long userId) throws StorageException {

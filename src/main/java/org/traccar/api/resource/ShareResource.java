@@ -19,6 +19,8 @@ import org.traccar.api.BaseResource;
 import org.traccar.api.signature.TokenManager;
 import org.traccar.config.Config;
 import org.traccar.config.Keys;
+import org.traccar.governance.Catalog;
+import org.traccar.governance.Governed;
 import org.traccar.model.BaseModel;
 import org.traccar.model.Device;
 import org.traccar.model.Group;
@@ -43,6 +45,7 @@ import java.security.GeneralSecurityException;
 import java.util.Date;
 import java.util.Locale;
 
+@Governed(value = Catalog.SHARING_MANAGE)
 @Path("share")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)

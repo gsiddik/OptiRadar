@@ -16,6 +16,8 @@
 package org.traccar.api.resource;
 
 import org.traccar.api.ExtendedObjectResource;
+import org.traccar.governance.Catalog;
+import org.traccar.governance.Governed;
 import org.traccar.model.Geofence;
 
 import jakarta.ws.rs.Consumes;
@@ -24,6 +26,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import java.util.List;
 
+@Governed(read = Catalog.GEOFENCES_VIEW, write = Catalog.GEOFENCES_MANAGE)
 @Path("geofences")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)

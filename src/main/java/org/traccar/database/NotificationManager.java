@@ -23,6 +23,8 @@ import org.traccar.config.Keys;
 import org.traccar.forward.EventData;
 import org.traccar.forward.EventForwarder;
 import org.traccar.geocoder.Geocoder;
+import org.traccar.governance.Catalog;
+import org.traccar.governance.GovernanceService;
 import org.traccar.helper.DateUtil;
 import org.traccar.model.Calendar;
 import org.traccar.model.Device;
@@ -45,6 +47,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 
 @Singleton
 public class NotificationManager {
@@ -57,6 +60,8 @@ public class NotificationManager {
     private final OptinexusEventRecorder optinexusEventRecorder;
     private final NotificatorManager notificatorManager;
     private final Geocoder geocoder;
+    private final GovernanceService governance;
+    private final ExecutorService executorService;
 
     private final boolean geocodeOnRequest;
     private final long timeThreshold;
@@ -66,7 +71,10 @@ public class NotificationManager {
     public NotificationManager(
             Config config, Storage storage, CacheManager cacheManager, @Nullable EventForwarder eventForwarder,
             NotificatorManager notificatorManager, @Nullable Geocoder geocoder,
-            OptinexusEventRecorder optinexusEventRecorder) {
+            OptinexusEventRecorder optinexusEventRecorder, GovernanceService governance,
+            ExecutorService executorService) {
+        this.governance = governance;
+        this.executorService = executorService;
         this.storage = storage;
         this.cacheManager = cacheManager;
         this.eventForwarder = eventForwarder;
@@ -145,12 +153,29 @@ public class NotificationManager {
                         LOGGER.info("User {} notification blocked", user.getId());
                         return;
                     }
-                    for (String notificator : notification.getNotificatorsTypes()) {
-                        notificatorManager.getNotificator(notificator).sendAsync(notification, user, event, position)
-                                .exceptionally(throwable -> {
-                                    LOGGER.warn("Notification failed", throwable);
-                                    return null;
-                                });
+                    Runnable send = () -> {
+                        for (String notificator : notification.getNotificatorsTypes()) {
+                            notificatorManager.getNotificator(notificator)
+                                    .sendAsync(notification, user, event, position)
+                                    .exceptionally(throwable -> {
+                                        LOGGER.warn("Notification failed", throwable);
+                                        return null;
+                                    });
+                        }
+                    };
+                    if (governance.enabled()) {
+                        // The event describes tenant data: only a user who may read events now receives it. The
+                        // question to OptiNexus must not hold up the processing of positions, so it is asked here.
+                        executorService.submit(() -> {
+                            if (governance.allows(user.getId(), Catalog.EVENTS_VIEW)) {
+                                send.run();
+                            } else {
+                                LOGGER.info("User {} notification not sent: access to events is not granted",
+                                        user.getId());
+                            }
+                        });
+                    } else {
+                        send.run();
                     }
                 });
             });

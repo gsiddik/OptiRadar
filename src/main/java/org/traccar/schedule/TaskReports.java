@@ -21,6 +21,8 @@ import com.google.inject.servlet.ServletScopes;
 import net.fortuna.ical4j.model.Period;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.traccar.governance.Catalog;
+import org.traccar.governance.GovernanceService;
 import org.traccar.helper.DateUtil;
 import org.traccar.helper.LogAction;
 import org.traccar.model.BaseModel;
@@ -57,9 +59,11 @@ public class TaskReports extends SingleScheduleTask {
     private final LogAction actionLogger;
     private final Storage storage;
     private final Injector injector;
+    private final GovernanceService governance;
 
     @Inject
-    public TaskReports(LogAction actionLogger, Storage storage, Injector injector) {
+    public TaskReports(LogAction actionLogger, Storage storage, Injector injector, GovernanceService governance) {
+        this.governance = governance;
         this.actionLogger = actionLogger;
         this.storage = storage;
         this.injector = injector;
@@ -136,6 +140,13 @@ public class TaskReports extends SingleScheduleTask {
 
         ReportMailer reportMailer = injector.getInstance(ReportMailer.class);
         for (User user : users) {
+            if (!governance.allows(user.getId(), Catalog.REPORTS_SCHEDULE)) {
+                // OptiNexus does not grant scheduled reports to this user now (or cannot be asked): nothing is
+                // prepared for them in this period.
+                LOGGER.info("Scheduled report {} not sent to user {}: access is not granted", report.getId(),
+                        user.getId());
+                continue;
+            }
             actionLogger.report(null, user.getId(), true, report.getType(), from, to, deviceIds, groupIds);
             reportMailer.sendAsync(user, url.toString());
         }

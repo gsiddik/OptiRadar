@@ -17,6 +17,7 @@
 package org.traccar.api.resource;
 
 import org.traccar.api.BaseResource;
+import org.traccar.governance.Governed;
 import org.traccar.helper.LogAction;
 import org.traccar.model.BaseModel;
 import org.traccar.model.Permission;
@@ -42,6 +43,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Set;
 
+@Governed(access = Governed.Access.DYNAMIC, rule = "permissions.link")
 @Path("permissions")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -73,6 +75,7 @@ public class PermissionsResource extends BaseResource {
         }
     }
 
+    @Governed(access = Governed.Access.OPERATOR)
     @GET
     public List<Permission> get(@Context UriInfo uriInfo) throws StorageException {
         permissionsService.checkAdmin(getUserId());

@@ -16,6 +16,7 @@
 package org.traccar.api.resource;
 
 import org.traccar.api.BaseResource;
+import org.traccar.governance.Governed;
 import org.traccar.model.Statistics;
 import org.traccar.storage.StorageException;
 import org.traccar.storage.query.Columns;
@@ -32,6 +33,7 @@ import jakarta.ws.rs.core.MediaType;
 import java.util.Date;
 import java.util.stream.Stream;
 
+@Governed(access = Governed.Access.OPERATOR)
 @Path("statistics")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)

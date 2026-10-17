@@ -86,6 +86,22 @@ public class OpenIdIdentities {
                 new Condition.And(new Condition.Equals("issuer", issuer), new Condition.Equals("subject", subject))));
     }
 
+    /**
+     * The OpenID identity an account belongs to (the one that signed in last when several issuers were used), or null
+     * when the account was never signed in through the provider.
+     */
+    public OpenIdIdentity findForUser(long userId) throws StorageException {
+        OpenIdIdentity latest = null;
+        for (OpenIdIdentity identity : storage.getObjects(OpenIdIdentity.class, new Request(
+                new Columns.All(), new Condition.Equals("userId", userId)))) {
+            if (latest == null || latest.getLastLoginAt() == null
+                    || identity.getLastLoginAt() != null && identity.getLastLoginAt().after(latest.getLastLoginAt())) {
+                latest = identity;
+            }
+        }
+        return latest;
+    }
+
     private OpenIdIdentity findForUser(long userId, String issuer) throws StorageException {
         return storage.getObject(OpenIdIdentity.class, new Request(
                 new Columns.All(),

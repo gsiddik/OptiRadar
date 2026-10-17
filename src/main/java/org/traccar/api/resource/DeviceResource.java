@@ -17,6 +17,8 @@ package org.traccar.api.resource;
 
 import org.traccar.api.BaseObjectResource;
 import org.traccar.database.MediaManager;
+import org.traccar.governance.Catalog;
+import org.traccar.governance.Governed;
 import org.traccar.helper.LogAction;
 import org.traccar.model.Device;
 import org.traccar.model.DeviceAccumulators;
@@ -54,6 +56,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Stream;
 
+@Governed(read = Catalog.DEVICES_VIEW, write = Catalog.DEVICES_MANAGE, integration = true)
 @Path("devices")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -146,6 +149,7 @@ public class DeviceResource extends BaseObjectResource<Device> {
         }
     }
 
+    @Governed(value = Catalog.DEVICES_ODOMETER_SET)
     @Path("{id}/accumulators")
     @PUT
     public Response updateAccumulators(DeviceAccumulators entity) throws Exception {

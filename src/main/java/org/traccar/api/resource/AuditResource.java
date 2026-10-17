@@ -16,6 +16,7 @@
 package org.traccar.api.resource;
 
 import org.traccar.api.BaseResource;
+import org.traccar.governance.Governed;
 import org.traccar.model.Action;
 import org.traccar.model.User;
 import org.traccar.storage.StorageException;
@@ -35,6 +36,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+@Governed(access = Governed.Access.OPERATOR)
 @Path("audit")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)

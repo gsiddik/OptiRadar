@@ -17,6 +17,7 @@
 package org.traccar.api;
 
 import org.traccar.api.security.ServiceAccountUser;
+import org.traccar.governance.GovernanceGuard;
 import org.traccar.helper.LogAction;
 import org.traccar.model.BaseModel;
 import org.traccar.model.Group;
@@ -55,6 +56,9 @@ public abstract class BaseObjectResource<T extends BaseModel> extends BaseResour
     @Inject
     private LogAction actionLogger;
 
+    @Inject
+    private GovernanceGuard governanceGuard;
+
     @Context
     private HttpServletRequest request;
 
@@ -80,6 +84,7 @@ public abstract class BaseObjectResource<T extends BaseModel> extends BaseResour
     @POST
     public Response add(T entity) throws Exception {
         permissionsService.checkEdit(getUserId(), entity, true, false);
+        governanceGuard.check(getUserId(), entity, true);
 
         if (entity instanceof Group group) {
             checkGroupHierarchy(group, true);
@@ -113,6 +118,7 @@ public abstract class BaseObjectResource<T extends BaseModel> extends BaseResour
         }
 
         permissionsService.checkEdit(getUserId(), entity, false, skipReadonly);
+        governanceGuard.check(getUserId(), entity, false);
 
         if (entity instanceof Group group) {
             checkGroupHierarchy(group, false);

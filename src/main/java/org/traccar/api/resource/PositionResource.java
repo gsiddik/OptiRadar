@@ -18,6 +18,8 @@ package org.traccar.api.resource;
 import org.traccar.api.BaseResource;
 import org.traccar.config.Config;
 import org.traccar.config.Keys;
+import org.traccar.governance.Catalog;
+import org.traccar.governance.Governed;
 import org.traccar.helper.model.PositionUtil;
 import org.traccar.model.Device;
 import org.traccar.model.Geofence;
@@ -53,6 +55,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import javax.xml.stream.XMLStreamException;
 
+@Governed(access = Governed.Access.DYNAMIC, rule = "positions.get", integration = true)
 @Path("positions")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -105,6 +108,7 @@ public class PositionResource extends BaseResource {
         }
     }
 
+    @Governed(access = Governed.Access.GRANT, value = Catalog.POSITIONS_DELETE)
     @Path("{id}")
     @DELETE
     public Response removeById(@PathParam("id") long positionId) throws StorageException {
@@ -122,6 +126,7 @@ public class PositionResource extends BaseResource {
         return Response.status(Response.Status.NO_CONTENT).build();
     }
 
+    @Governed(access = Governed.Access.GRANT, value = Catalog.POSITIONS_DELETE)
     @DELETE
     public Response remove(
             @QueryParam("deviceId") long deviceId,
@@ -137,6 +142,7 @@ public class PositionResource extends BaseResource {
         return Response.status(Response.Status.NO_CONTENT).build();
     }
 
+    @Governed(access = Governed.Access.GRANT, value = Catalog.POSITIONS_EXPORT)
     @Path("{extension:kml|kmz}")
     @GET
     public Response getKml(
@@ -167,6 +173,7 @@ public class PositionResource extends BaseResource {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=positions." + extension).build();
     }
 
+    @Governed(access = Governed.Access.GRANT, value = Catalog.POSITIONS_EXPORT)
     @Path("csv")
     @GET
     @Produces("text/csv")
@@ -186,6 +193,7 @@ public class PositionResource extends BaseResource {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=positions.csv").build();
     }
 
+    @Governed(access = Governed.Access.GRANT, value = Catalog.POSITIONS_EXPORT)
     @Path("gpx")
     @GET
     @Produces("application/gpx+xml")

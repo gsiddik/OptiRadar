@@ -141,6 +141,39 @@ public class OpenIdTenantLinker {
     }
 
     /**
+     * The tenants whose data the user can reach through groups: for every group the user is linked to, the nearest
+     * tenant group at or above it. An account of a single tenant has exactly one; none means the account is tied to
+     * no tenant, more than one means the account is wrongly linked (access is then refused, never merged).
+     */
+    public Set<String> tenantsOf(long userId) throws StorageException {
+        Map<Long, Group> groups = new HashMap<>();
+        for (Group group : storage.getObjects(Group.class, new Request(new Columns.All()))) {
+            groups.put(group.getId(), group);
+        }
+        Set<String> tenants = new HashSet<>();
+        for (Permission permission : storage.getPermissions(User.class, userId, Group.class, 0)) {
+            Group group = groups.get(permission.getPropertyId());
+            Set<Long> seen = new HashSet<>();
+            while (group != null && seen.add(group.getId())) {
+                String tenant = tenantOf(group);
+                if (tenant != null) {
+                    tenants.add(tenant);
+                    break;
+                }
+                group = group.getGroupId() > 0 ? groups.get(group.getGroupId()) : null;
+            }
+        }
+        return tenants;
+    }
+
+    /**
+     * The attribute that carries the tenant identifier on groups; it is reserved and cannot be set by tenant users.
+     */
+    public String tenantAttribute() {
+        return attribute;
+    }
+
+    /**
      * True when the group, or a group above it, is a tenant group of a tenant other than {@code wanted}.
      */
     private boolean belongsToOtherTenant(Group group, Map<Long, Group> groups, String wanted) {

@@ -106,6 +106,12 @@ tenant are left alone.
   has none of them, so a plain installation behaves as before. With Docker (`CONFIG_USE_ENVIRONMENT_VARIABLES: "true"`) use
   `OPENID_CLIENT_ID`, `OPENID_TENANT_CLAIM`, `OPENID_ALLOW_REGISTRATION=true` and `USERS_DEFAULT_DEVICE_LIMIT=0`.
 
+## Who may do what: central governance
+
+Signing in proves who the person is. What they may do is decided by OptiNexus when `governance.enable` is on: permissions,
+tenant entitlements, a five-minute freshness limit and a refusal (never a local fallback) when OptiNexus cannot answer.
+Everything is in [governance.md](governance.md).
+
 ## Password sign-in keeps working
 
 The integration only adds a way in. Users that have a password can still sign in on the login page with it, and a

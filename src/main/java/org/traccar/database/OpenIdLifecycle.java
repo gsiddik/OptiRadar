@@ -33,7 +33,10 @@ import org.traccar.storage.query.Request;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import jakarta.servlet.http.HttpSession;
+import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.LongConsumer;
 
 /**
  * What happens to an OptiRadar account when the OpenID provider says the user logged out elsewhere or lost access.
@@ -62,6 +65,7 @@ public class OpenIdLifecycle {
     private final CacheManager cacheManager;
     private final OpenIdIdentities identities;
     private final String tenantAttribute;
+    private final List<LongConsumer> listeners = new CopyOnWriteArrayList<>();
 
     @Inject
     public OpenIdLifecycle(
@@ -70,6 +74,20 @@ public class OpenIdLifecycle {
         this.cacheManager = cacheManager;
         this.identities = identities;
         this.tenantAttribute = config.getString(Keys.OPENID_TENANT_GROUP_ATTRIBUTE);
+    }
+
+    /**
+     * Tells {@code listener} the id of every user whose sessions or tenant scope changed here, so what was decided
+     * about the user earlier (for example cached grants) is dropped.
+     */
+    public void addListener(LongConsumer listener) {
+        listeners.add(listener);
+    }
+
+    private void changed(User user) {
+        for (LongConsumer listener : listeners) {
+            listener.accept(user.getId());
+        }
     }
 
     /**
@@ -117,6 +135,7 @@ public class OpenIdLifecycle {
 
         storage.updateObject(user, new Request(columns, new Condition.Equals("id", user.getId())));
         cacheManager.invalidateObject(true, User.class, user.getId(), ObjectOperation.UPDATE);
+        changed(user);
         LOGGER.info("OpenID provider ended sessions of user {}{}", user.getId(),
                 event.accessRevoked() ? " and revoked access" : "");
     }
@@ -130,6 +149,7 @@ public class OpenIdLifecycle {
         storage.updateObject(user, new Request(
                 new Columns.Include("attributes"), new Condition.Equals("id", user.getId())));
         cacheManager.invalidateObject(true, User.class, user.getId(), ObjectOperation.UPDATE);
+        changed(user);
     }
 
     public void rememberLogoutUrl(User user, String url) throws StorageException {
