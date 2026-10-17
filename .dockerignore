@@ -1,0 +1,21 @@
+# Build context is the repository root. Nothing from a developer's working copy may reach an image:
+# environment files, build output, caches, installed dependencies, runtime data and logs, VCS data.
+.git
+**/.git
+.github
+.gradle
+.idea
+.vscode
+**/.env
+**/.env.*
+!**/.env.example
+**/node_modules
+build
+target
+out
+data
+logs
+optiradar-web/build
+optiradar-web/*.png
+tools
+docs
