@@ -17,6 +17,13 @@
     <entry key='openid.clientId'>CHANGE-client-id</entry>
     <entry key='openid.clientSecret'>CHANGE-client-secret</entry>
     <entry key='openid.issuerUrl'>https://nexus.example.com</entry>
+    <!-- Without discovery state the issuer and key set instead of issuerUrl:
+    <entry key='openid.issuer'>https://nexus.example.com</entry>
+    <entry key='openid.jwksUrl'>https://nexus.example.com/oidc/jwks</entry>
+    -->
+    <entry key='openid.idTokenAlgorithms'>RS256</entry>
+    <!-- Link an existing account to its OpenID identity once, through a verified email. Set to false when done. -->
+    <entry key='openid.legacyEmailLinking'>true</entry>
     <entry key='openid.allowGroup'>optiradar</entry>
 
     <!-- Tie every login to the tenant that OptiNexus names (claim tenant_id) and to its group in OptiRadar. -->

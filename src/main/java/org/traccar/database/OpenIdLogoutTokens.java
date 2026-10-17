@@ -50,13 +50,16 @@ public final class OpenIdLogoutTokens {
     /**
      * What the provider said about the user.
      *
-     * @param subject the provider's id of the user
-     * @param email the user's email, if the provider sent it
+     * @param issuer the provider that sent it (validated against the configured issuer)
+     * @param subject the provider's id of the user: the identity the event is about
+     * @param email the user's email, if the provider sent it (informational; it never selects an account)
      * @param accessRevoked true when the user must also be deactivated, not only logged out
      * @param tenantScope true when only one tenant is affected
      * @param tenantId the affected tenant, with tenantScope
      */
-    public record Event(String subject, String email, boolean accessRevoked, boolean tenantScope, String tenantId) {
+    public record Event(
+            String issuer, String subject, String email, boolean accessRevoked, boolean tenantScope,
+            String tenantId) {
     }
 
     private final LogoutTokenValidator validator;
@@ -110,6 +113,7 @@ public final class OpenIdLogoutTokens {
         }
 
         return new Event(
+                claims.getIssuer().getValue(),
                 claims.getSubject() != null ? claims.getSubject().getValue() : null,
                 email, custom != null, tenantScope, tenantId);
     }

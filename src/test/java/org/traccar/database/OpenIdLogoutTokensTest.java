@@ -82,6 +82,7 @@ public class OpenIdLogoutTokensTest {
         OpenIdLogoutTokens.Event event = tokens.verify(sign(claims -> { }));
 
         assertEquals("user-1", event.subject());
+        assertEquals(ISSUER, event.issuer());
         assertEquals("driver@example.test", event.email());
         assertFalse(event.accessRevoked());
         assertFalse(event.tenantScope());

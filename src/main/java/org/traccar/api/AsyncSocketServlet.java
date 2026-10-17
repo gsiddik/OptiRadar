@@ -21,14 +21,12 @@ import org.eclipse.jetty.ee10.websocket.server.JettyWebSocketServletFactory;
 import org.traccar.api.security.LoginService;
 import org.traccar.config.Config;
 import org.traccar.config.Keys;
-import org.traccar.helper.SessionHelper;
 import org.traccar.session.ConnectionManager;
 import org.traccar.storage.Storage;
 import org.traccar.storage.StorageException;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.time.Duration;
@@ -67,8 +65,15 @@ public class AsyncSocketServlet extends JettyWebSocketServlet {
                 } catch (StorageException | GeneralSecurityException | IOException e) {
                     throw new RuntimeException(e);
                 }
-            } else if (SessionHelper.isSessionOriginValid(req.getHttpServletRequest())) {
-                userId = (Long) ((HttpSession) req.getSession()).getAttribute(SessionHelper.USER_ID_KEY);
+            } else {
+                try {
+                    // Same checks as every other session request: origin, expiry, account enabled and a session
+                    // the OpenID provider has not ended.
+                    var result = loginService.login(req.getHttpServletRequest());
+                    userId = result != null ? result.getUser().getId() : null;
+                } catch (StorageException | SecurityException e) {
+                    userId = null;
+                }
             }
             if (userId != null) {
                 return new AsyncSocket(objectMapper, connectionManager, storage, userId);

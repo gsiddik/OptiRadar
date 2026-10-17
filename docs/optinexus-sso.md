@@ -10,7 +10,8 @@ nothing below changes and OpenID behaves as in upstream Traccar.
    uses "Login with OpenID" on the login page. OptiNexus signs them in, or reuses the session they already have from
    OptiFleet, and sends them back to `/api/session/openid/callback`.
 2. OptiNexus only issues the login if the user's organization is subscribed to OptiRadar and the user has been given
-   access to it. Otherwise the callback shows an error and no session is created.
+   access to it. Otherwise the callback is refused: no session is created and the browser returns to the login page
+   with a generic "sign-in failed" message (the reason is only in the server log).
 3. With `openid.tenantClaim` set, OptiRadar then:
    * requires the claim named by `openid.tenantClaim` (OptiNexus: `tenant_id`) and a verified email;
    * looks for **one** group whose attribute `openid.tenantGroupAttribute` equals that tenant id; no group, or more
@@ -22,6 +23,61 @@ nothing below changes and OpenID behaves as in upstream Traccar.
 
 Devices belong to a tenant through their group (devices in a tenant group, or in its sub-groups, are visible to the
 tenant's users).
+
+## How the login is protected
+
+* **State, nonce and PKCE.** Every sign-in is started by the server (`/api/session/openid/auth`). It creates a
+  one-time `state`, a `nonce` and an S256 PKCE verifier, keeps them in server memory, bound to the browser session
+  that started it, and sends only the state, nonce and PKCE challenge to OptiNexus. A callback is accepted only with
+  the state of a sign-in that is still pending, in the same browser, within 10 minutes; a state is used up the first
+  time it is presented, whatever the outcome (replay, expiry, another browser and unknown states are refused). At most
+  5 sign-ins are pending per browser and 5000 overall. The pending logins live in the memory of the server process
+  (like its web sessions), so run one OptiRadar instance or pin a user to one instance.
+* **ID token.** The ID token returned for the code is verified completely: signature against the OptiNexus key set
+  (selected by `kid`; an unknown `kid` refreshes the keys, so a rotation is followed), an allow-list of signature
+  algorithms (`openid.idTokenAlgorithms`, default `RS256`; `none` and HMAC are refused), issuer, audience (and
+  authorized party when there are several audiences), expiry, issue time and the nonce of this sign-in. The subject
+  reported by the user info endpoint must be the subject of the ID token. An `iss` parameter on the callback must be
+  the configured issuer.
+* **Client registration.** Register the OptiRadar client in OptiNexus as a confidential client with
+  `require_pkce = true` (OptiNexus then refuses a code request without S256 PKCE) and the exact redirect URI
+  `https://<radar>/api/session/openid/callback`. `require_pkce = false` is not a supported setting.
+* **Mobile app redirect** (`org.traccar.manager://…`) is refused unless `openid.allowMobileRedirect=true`. When it is
+  on, the redirect address must be named when the sign-in starts (`/api/session/openid/auth?redirect_uri=…`), is
+  fixed for that sign-in, and the state is still server-created and one-time, but it cannot be bound to a browser
+  session. Leave it off unless the mobile app needs it, and register that redirect in OptiNexus as well.
+
+## Who the user is: the OpenID identity, not the email
+
+An OptiRadar account is tied to the identity the provider vouches for: the pair (issuer, subject), stored in
+`tc_openid_identities` (unique per (issuer, subject) and per (account, issuer), enforced by the database). The email
+is only a profile attribute.
+
+* A known identity always signs in to the account it is linked to. If the provider reports a new email, it is copied
+  into the account (unless another account already has that address, then it is kept and a warning is logged).
+* **First sign-in of an existing account.** If the identity is unknown, the email is verified and an OptiRadar account
+  with that email exists, the identity is linked to it **once** (`linkedvia = legacy-email`, audited in the action
+  log). An account that is already linked to a different identity of the same provider is never handed over: the
+  sign-in is refused and audited (this is what happens when an address is reused by another person). Set
+  `openid.legacyEmailLinking=false` once the accounts of your users are linked to stop all linking by email.
+* **No account yet:** one is created (only if registration allows) and linked (`new-account`). An unverified email never
+  links or creates an account.
+* **Back-channel logout, deactivation and reactivation** find the account by the subject of the token, never by email.
+  A token about an identity that is not linked to any account here changes nothing.
+* Upgrading: the table is created by the normal database migration. Existing accounts get their link at their first
+  SSO sign-in after the upgrade; until then a logout or revocation from OptiNexus cannot reach them (they have no
+  stable identity yet), so ask users to sign in once, or end their sessions by other means.
+
+### One active tenant per account
+
+An OptiRadar account has one active tenant. Signing in to another tenant (the same person, another organization)
+moves the account to that tenant: links to groups and devices of other tenants are removed (including direct device
+permissions, the account's own sub-group links and devices in other tenants' groups), and **every web session of the
+account that began earlier ends** (the user sees the login page there), so no open session silently continues with a
+different tenant's scope. Parallel sessions for two tenants at the same time would need the tenant to be part of the
+session and of every permission check; this is a contract change that is not made here. Long-lived API tokens belong to
+the account and are not ended by a tenant switch (a deactivation does end them). Groups and devices that belong to no
+tenant are left alone.
 
 ## Configuration (`conf/optiradar.xml`)
 
@@ -35,7 +91,10 @@ tenant's users).
 <entry key='openid.allowRegistration'>true</entry>  <!-- create the account on first SSO login -->
 ```
 
-* Register OptiRadar as an OIDC client in OptiNexus with the redirect URI
+* Without `openid.issuerUrl` (no discovery) state the issuer and the key set yourself:
+  `openid.issuer` (the `iss` of the ID tokens) and `openid.jwksUrl`; without them the server refuses to start OpenID
+  rather than accept an ID token it cannot verify.
+* Register OptiRadar as an OIDC client in OptiNexus (confidential, `require_pkce = true`) with the redirect URI
   `https://<radar>/api/session/openid/callback`, and set the application's launch URL to
   `https://<radar>/api/session/openid/auth` so "open OptiRadar" from OptiFleet signs in without a login screen.
 * `openid.allowRegistration=false` (the default) rejects people who have no OptiRadar account yet. With `true`, the
@@ -77,7 +136,8 @@ OptiNexus tells OptiRadar when a user's sessions have to end, through OpenID Con
   as a post-logout redirect URI of the OIDC client; without it OptiNexus shows its own "signed out" page.
 
 Limits: a plain logout does not revoke long-lived OptiRadar API tokens (a deactivation does, because the account is
-disabled); the `state` parameter is not checked (upstream behavior).
+disabled). Web sessions and the live WebSocket connection check the same rules (account enabled, session not ended by
+the provider) when they are opened.
 
 ## Events to OptiNexus
 
@@ -141,11 +201,12 @@ know which tenant a device belongs to, and links devices to OptiFleet vehicles b
 
 ## Notes
 
-* Upstream behavior kept as is: the `state` value of the authorization request is not checked on the callback, and the
-  ID token is not verified separately (user info is fetched from the provider's endpoint with the access token).
-* Tests: `OpenIdTenantLinkerTest`, `OpenIdAppsTest`, `OpenIdLifecycleTest`, `OpenIdLogoutTokensTest`,
-  `OptinexusEventRecorderTest`, `OptinexusEventRelayTest`. The full login round trip and the delivery of events against
-  a running OptiNexus are not covered by an automated test (they were exercised by hand against a live OptiNexus).
+* Tests: `OpenIdProviderTest` (whole sign-in against a simulated provider with real signed tokens: state, nonce,
+  PKCE, replay, login CSRF, concurrency, tenant switch), `OpenIdPendingLoginsTest`, `OpenIdIdTokensTest`
+  (signature, issuer, audience, expiry, nonce, algorithm confusion, key rotation), `OpenIdIdentitiesTest` (links,
+  changed and reused email, conflicts, races), `OpenIdTenantLinkerTest`, `OpenIdAppsTest`, `OpenIdLifecycleTest`,
+  `OpenIdLogoutTokensTest`, `OptinexusEventRecorderTest`, `OptinexusEventRelayTest`. A round trip against a running
+  OptiNexus and the delivery of events are not covered by an automated test.
 
 ## Upgrading an installation from before the rename
 

@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.traccar.config.Config;
 import org.traccar.helper.LogAction;
+import org.traccar.model.Device;
 import org.traccar.model.Group;
 import org.traccar.model.Permission;
 import org.traccar.model.User;
@@ -17,7 +18,9 @@ import java.security.GeneralSecurityException;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -124,5 +127,57 @@ public class OpenIdTenantLinkerTest {
                 .invalidatePermission(anyBoolean(), eq(User.class), anyLong(), eq(Group.class), anyLong(), anyBoolean());
         verify(cacheManager, never())
                 .invalidatePermission(anyBoolean(), eq(User.class), anyLong(), eq(Group.class), anyLong(), eq(false));
+    }
+
+    private Device addDevice(String name, long groupId) throws Exception {
+        Device device = new Device();
+        device.setName(name);
+        device.setUniqueId(name);
+        device.setGroupId(groupId);
+        device.setId(storage.addObject(device, new Request(new Columns.Exclude("id"))));
+        return device;
+    }
+
+    private List<Long> devicesOf(User user) throws Exception {
+        return storage.getPermissions(User.class, user.getId(), Device.class, 0).stream()
+                .map(Permission::getPropertyId).sorted().toList();
+    }
+
+    @Test
+    public void reportsWhetherTheScopeOfTheUserChanged() throws Exception {
+        Group a = addGroup("Tenant A", TENANT_A);
+        Group b = addGroup("Tenant B", TENANT_B);
+        User user = addUser();
+        var request = mock(jakarta.servlet.http.HttpServletRequest.class);
+
+        assertTrue(linker.link(request, user, a), "first link");
+        assertFalse(linker.link(request, user, a), "same tenant again");
+        assertTrue(linker.link(request, user, b), "another tenant");
+        assertEquals(List.of(b.getId()), groupsOf(user));
+    }
+
+    @Test
+    public void signingInToTenantBRemovesDirectDevicesAndSubgroupsOfTenantAButKeepsTheRest() throws Exception {
+        Group a = addGroup("Tenant A", TENANT_A);
+        Group b = addGroup("Tenant B", TENANT_B);
+        Group subOfA = addGroup("Depot of A", null);
+        subOfA.setGroupId(a.getId());
+        storage.updateObject(subOfA, new Request(new Columns.Include("groupId"),
+                new org.traccar.storage.query.Condition.Equals("id", subOfA.getId())));
+        Device inA = addDevice("truck-a", subOfA.getId());
+        Device inB = addDevice("truck-b", b.getId());
+        Device loose = addDevice("loose", 0);
+        User user = addUser();
+        storage.addPermission(new Permission(User.class, user.getId(), Group.class, subOfA.getId()));
+        for (Device device : List.of(inA, inB, loose)) {
+            storage.addPermission(new Permission(User.class, user.getId(), Device.class, device.getId()));
+        }
+
+        linker.link(mock(jakarta.servlet.http.HttpServletRequest.class), user, b);
+
+        assertEquals(List.of(b.getId()), groupsOf(user));
+        assertEquals(List.of(inB.getId(), loose.getId()).stream().sorted().toList(), devicesOf(user));
+        verify(cacheManager).invalidatePermission(
+                eq(true), eq(User.class), eq(user.getId()), eq(Device.class), eq(inA.getId()), eq(false));
     }
 }

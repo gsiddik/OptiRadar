@@ -21,11 +21,10 @@ import org.traccar.api.signature.TokenManager;
 import org.traccar.config.Config;
 import org.traccar.config.Keys;
 import org.traccar.database.LdapProvider;
+import org.traccar.database.OpenIdIdentities;
 import org.traccar.database.OpenIdLifecycle;
 import org.traccar.helper.DataConverter;
 import org.traccar.helper.SessionHelper;
-import org.traccar.helper.model.UserUtil;
-import org.traccar.model.Server;
 import org.traccar.model.User;
 import org.traccar.storage.Storage;
 import org.traccar.storage.StorageException;
@@ -43,7 +42,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.util.Date;
 import java.util.Locale;
-import java.util.Objects;
 
 @Singleton
 public class LoginService {
@@ -53,25 +51,25 @@ public class LoginService {
     private final TokenManager tokenManager;
     private final LdapProvider ldapProvider;
     private final Provider<PermissionsService> permissionsServiceProvider;
+    private final OpenIdIdentities openIdIdentities;
 
     private final String serviceAccountToken;
     private final boolean forceLdap;
     private final boolean forceOpenId;
-    private final boolean allowOpenIdRegistration;
 
     @Inject
     public LoginService(
             Config config, Storage storage, TokenManager tokenManager, @Nullable LdapProvider ldapProvider,
-            Provider<PermissionsService> permissionsServiceProvider) {
+            Provider<PermissionsService> permissionsServiceProvider, OpenIdIdentities openIdIdentities) {
         this.storage = storage;
         this.config = config;
         this.tokenManager = tokenManager;
         this.ldapProvider = ldapProvider;
         this.permissionsServiceProvider = permissionsServiceProvider;
+        this.openIdIdentities = openIdIdentities;
         serviceAccountToken = config.getString(Keys.WEB_SERVICE_ACCOUNT_TOKEN);
         forceLdap = config.getBoolean(Keys.LDAP_FORCE);
         forceOpenId = config.getBoolean(Keys.OPENID_FORCE);
-        allowOpenIdRegistration = config.getBoolean(Keys.OPENID_ALLOW_REGISTRATION);
     }
 
     public LoginResult login(HttpServletRequest request) throws StorageException {
@@ -155,50 +153,14 @@ public class LoginService {
         return null;
     }
 
-    public LoginResult login(String email, String name, Boolean administrator) throws StorageException {
-
-        User user = storage.getObject(User.class, new Request(
-                new Columns.All(),
-                new Condition.Equals("LOWER(email)", email.toLowerCase(Locale.ROOT))));
-
-        if (user != null && OpenIdLifecycle.reactivate(user)) {
-            // The provider has just let this user in again after switching the account off itself.
-            storage.updateObject(user, new Request(
-                    new Columns.Include("disabled", "attributes"),
-                    new Condition.Equals("id", user.getId())));
-        }
-
-        if (user == null) {
-
-            if (!allowOpenIdRegistration && !UserUtil.isEmpty(storage)) {
-                Server server = storage.getObject(Server.class, new Request(new Columns.All()));
-                if (!server.getRegistration()) {
-                    throw new SecurityException("Registration disabled");
-                }
-            }
-
-            user = new User();
-            UserUtil.setUserDefaults(user, config);
-            user.setName(name);
-            user.setEmail(email);
-            user.setFixedEmail(true);
-            if (administrator != null) {
-                user.setAdministrator(administrator);
-            }
-            user.setId(storage.addObject(user, new Request(new Columns.Exclude("id"))));
-
-        } else if (!Objects.equals(name, user.getName())
-                || administrator != null && user.getAdministrator() != administrator) {
-
-            user.setName(name);
-            if (administrator != null) {
-                user.setAdministrator(administrator);
-            }
-            storage.updateObject(user, new Request(
-                    new Columns.Include("name", "administrator"),
-                    new Condition.Equals("id", user.getId())));
-        }
-
+    /**
+     * Signs in a user the OpenID provider has vouched for. The account is the one linked to the provider's identity
+     * (issuer + subject); see {@link OpenIdIdentities}.
+     */
+    public LoginResult login(
+            HttpServletRequest request, OpenIdIdentities.Claims claims, String name, Boolean administrator)
+            throws StorageException, GeneralSecurityException {
+        User user = openIdIdentities.resolve(request, claims, name, administrator);
         checkUserEnabled(user);
         return new LoginResult(user);
     }

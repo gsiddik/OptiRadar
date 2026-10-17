@@ -838,6 +838,51 @@ public final class Keys {
             List.of(KeyType.CONFIG));
 
     /**
+     * OpenID Connect issuer identifier, exactly as the provider puts it in the "iss" claim of its ID tokens.
+     * Required if openid.issuerUrl is not set (the issuer cannot then be discovered).
+     */
+    public static final ConfigKey<String> OPENID_ISSUER = new StringConfigKey(
+            "openid.issuer",
+            List.of(KeyType.CONFIG));
+
+    /**
+     * URL of the provider's JSON Web Key Set, used to check the signature of ID tokens and logout tokens.
+     * Required if openid.issuerUrl is not set; with openid.issuerUrl it is discovered.
+     */
+    public static final ConfigKey<String> OPENID_JWKS_URL = new StringConfigKey(
+            "openid.jwksUrl",
+            List.of(KeyType.CONFIG));
+
+    /**
+     * Signature algorithms accepted for ID tokens, comma separated (for example RS256 or RS256,ES256).
+     * "none" and symmetric (HS*) algorithms are never accepted. Defaults to RS256.
+     */
+    public static final ConfigKey<String> OPENID_ID_TOKEN_ALGORITHMS = new StringConfigKey(
+            "openid.idTokenAlgorithms",
+            List.of(KeyType.CONFIG),
+            "RS256");
+
+    /**
+     * Link an existing OptiRadar account to the OpenID identity (issuer + subject) the first time a user whose
+     * email is verified signs in with the same email address, once and only when the account is not yet linked to
+     * another identity. Disable it after the accounts of your users have been linked.
+     */
+    public static final ConfigKey<Boolean> OPENID_LEGACY_EMAIL_LINKING = new BooleanConfigKey(
+            "openid.legacyEmailLinking",
+            List.of(KeyType.CONFIG),
+            true);
+
+    /**
+     * Accept a custom-scheme redirect (org.traccar.manager://) on the OpenID callback, for the mobile app. The
+     * sign-in still needs a state created by this server, but it is not bound to a browser session, so it is
+     * disabled by default.
+     */
+    public static final ConfigKey<Boolean> OPENID_ALLOW_MOBILE_REDIRECT = new BooleanConfigKey(
+            "openid.allowMobileRedirect",
+            List.of(KeyType.CONFIG),
+            false);
+
+    /**
      * OpenID Connect Authorization URL.
      * This can usually be found in the documentation of your identity provider or by using the well-known
      * configuration endpoint, e.g. https://auth.example.com/.well-known/openid-configuration

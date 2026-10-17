@@ -95,6 +95,33 @@ public final class LogAction {
         logLoginAction(request, ACTION_LOGOUT, userId);
     }
 
+    /**
+     * An OpenID identity (issuer + subject) was tied to an account; {@code via} says how (new account or verified
+     * email).
+     */
+    public void openIdLink(HttpServletRequest request, long userId, long identityId, String via) {
+        Action action = new Action();
+        action.setAddress(WebHelper.retrieveRemoteAddress(request));
+        action.setUserId(userId);
+        action.setActionType(ACTION_LINK);
+        action.setObjectType("openIdIdentity");
+        action.setObjectId(identityId);
+        action.set("via", via);
+        storeAction(action);
+    }
+
+    /**
+     * An OpenID sign-in was refused because the account is tied to another identity.
+     */
+    public void openIdConflict(HttpServletRequest request, long userId) {
+        Action action = new Action();
+        action.setAddress(WebHelper.retrieveRemoteAddress(request));
+        action.setUserId(userId);
+        action.setActionType(ACTION_DENIED);
+        action.setObjectType("openIdIdentity");
+        storeAction(action);
+    }
+
     public void token(HttpServletRequest request, long userId, long tokenId) {
         Action action = new Action();
         action.setAddress(WebHelper.retrieveRemoteAddress(request));

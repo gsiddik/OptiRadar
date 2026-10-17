@@ -179,11 +179,13 @@ public class SessionResource extends BaseResource {
     @PermitAll
     @Path("openid/auth")
     @GET
-    public Response openIdAuth() {
+    public Response openIdAuth(@QueryParam("redirect_uri") String redirectUri) throws GeneralSecurityException {
         if (openIdProvider == null) {
             throw new UnsupportedOperationException("OpenID not enabled");
         }
-        return Response.seeOther(openIdProvider.createAuthUri()).build();
+        return Response.seeOther(openIdProvider.createAuthUri(request, redirectUri))
+                .header("Cache-Control", "no-store")
+                .build();
     }
 
     /**
@@ -215,7 +217,18 @@ public class SessionResource extends BaseResource {
         if (openIdProvider == null) {
             throw new UnsupportedOperationException("OpenID not enabled");
         }
-        return Response.seeOther(openIdProvider.handleCallback(request.getQueryString(), request)).build();
+        try {
+            return Response.seeOther(openIdProvider.handleCallback(request.getQueryString(), request))
+                    .header("Cache-Control", "no-store")
+                    .build();
+        } catch (GeneralSecurityException | SecurityException e) {
+            // Nothing about the failure goes to the browser; the web app shows a generic message.
+            LOGGER.warn("OpenID sign-in refused: {}", e.getMessage());
+            actionLogger.failedLogin(request);
+            return Response.seeOther(openIdProvider.failureUri())
+                    .header("Cache-Control", "no-store")
+                    .build();
+        }
     }
 
 }

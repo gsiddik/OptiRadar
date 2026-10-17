@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import org.traccar.config.Config;
 import org.traccar.config.Keys;
 import org.traccar.helper.LogAction;
+import org.traccar.model.Device;
 import org.traccar.model.Group;
 import org.traccar.model.Permission;
 import org.traccar.model.User;
@@ -34,6 +35,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import jakarta.servlet.http.HttpServletRequest;
 import java.security.GeneralSecurityException;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -87,24 +89,45 @@ public class OpenIdTenantLinker {
     }
 
     /**
-     * Makes the tenant group the only tenant group of the user. Groups and links that do not belong to a tenant
-     * are left alone.
+     * Makes the tenant the only tenant of the user: the tenant group is linked, and every link of the user to a group
+     * (or to a device in a group) that belongs to another tenant is removed, so signing in to one tenant never
+     * leaves the data of another tenant in reach. Groups and devices that belong to no tenant are left alone.
+     *
+     * @return true when the user's tenant scope changed (first link, or something of another tenant was removed);
+     *         the caller then ends the user's other sessions, so no open session silently gets the new scope
      */
-    public void link(HttpServletRequest request, User user, Group tenantGroup) throws Exception {
-        Set<Long> tenantGroupIds = new HashSet<>();
-        for (Group group : tenantGroups()) {
-            tenantGroupIds.add(group.getId());
+    public boolean link(HttpServletRequest request, User user, Group tenantGroup) throws Exception {
+        Map<Long, Group> groups = new HashMap<>();
+        for (Group group : storage.getObjects(Group.class, new Request(new Columns.All()))) {
+            groups.put(group.getId(), group);
         }
+        String wanted = tenantOf(tenantGroup);
 
         boolean linked = false;
+        boolean changed = false;
         for (Permission permission : storage.getPermissions(User.class, user.getId(), Group.class, 0)) {
             long groupId = permission.getPropertyId();
             if (groupId == tenantGroup.getId()) {
                 linked = true;
-            } else if (tenantGroupIds.contains(groupId)) {
+            } else if (belongsToOtherTenant(groups.get(groupId), groups, wanted)) {
                 storage.removePermission(permission);
                 cacheManager.invalidatePermission(true, User.class, user.getId(), Group.class, groupId, false);
                 actionLogger.unlink(request, user.getId(), User.class, user.getId(), Group.class, groupId);
+                changed = true;
+            }
+        }
+
+        for (Permission permission : storage.getPermissions(User.class, user.getId(), Device.class, 0)) {
+            Device device = storage.getObject(Device.class, new Request(
+                    new Columns.Include("id", "groupId"), new Condition.Equals("id", permission.getPropertyId())));
+            if (device != null && device.getGroupId() > 0
+                    && belongsToOtherTenant(groups.get(device.getGroupId()), groups, wanted)) {
+                storage.removePermission(permission);
+                cacheManager.invalidatePermission(
+                        true, User.class, user.getId(), Device.class, permission.getPropertyId(), false);
+                actionLogger.unlink(
+                        request, user.getId(), User.class, user.getId(), Device.class, permission.getPropertyId());
+                changed = true;
             }
         }
 
@@ -112,7 +135,24 @@ public class OpenIdTenantLinker {
             storage.addPermission(new Permission(User.class, user.getId(), Group.class, tenantGroup.getId()));
             cacheManager.invalidatePermission(true, User.class, user.getId(), Group.class, tenantGroup.getId(), true);
             actionLogger.link(request, user.getId(), User.class, user.getId(), Group.class, tenantGroup.getId());
+            changed = true;
         }
+        return changed;
+    }
+
+    /**
+     * True when the group, or a group above it, is a tenant group of a tenant other than {@code wanted}.
+     */
+    private boolean belongsToOtherTenant(Group group, Map<Long, Group> groups, String wanted) {
+        Set<Long> seen = new HashSet<>();
+        while (group != null && seen.add(group.getId())) {
+            String tenant = tenantOf(group);
+            if (tenant != null) {
+                return !tenant.equals(wanted);
+            }
+            group = group.getGroupId() > 0 ? groups.get(group.getGroupId()) : null;
+        }
+        return false;
     }
 
     /**

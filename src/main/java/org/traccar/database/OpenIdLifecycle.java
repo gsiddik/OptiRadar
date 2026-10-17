@@ -39,6 +39,8 @@ import java.util.Locale;
  * What happens to an OptiRadar account when the OpenID provider says the user logged out elsewhere or lost access.
  *
  * <ul>
+ * <li>The account is found by the provider's stable identity (issuer + subject, see {@link OpenIdIdentities}), never by
+ * email: an address that changed or was given to somebody else must not end or switch off the wrong account.</li>
  * <li>Every event ends the user's web sessions: the time is stored in a user attribute and a session that began
  * earlier is no longer accepted.</li>
  * <li>Access lost for the whole user also disables the account, so no other way in works either. The account is
@@ -58,12 +60,15 @@ public class OpenIdLifecycle {
 
     private final Storage storage;
     private final CacheManager cacheManager;
+    private final OpenIdIdentities identities;
     private final String tenantAttribute;
 
     @Inject
-    public OpenIdLifecycle(Config config, Storage storage, CacheManager cacheManager) {
+    public OpenIdLifecycle(
+            Config config, Storage storage, CacheManager cacheManager, OpenIdIdentities identities) {
         this.storage = storage;
         this.cacheManager = cacheManager;
+        this.identities = identities;
         this.tenantAttribute = config.getString(Keys.OPENID_TENANT_GROUP_ATTRIBUTE);
     }
 
@@ -90,11 +95,10 @@ public class OpenIdLifecycle {
     }
 
     public void apply(OpenIdLogoutTokens.Event event) throws Exception {
-        if (event.email() == null || event.email().isBlank()) {
-            return;
-        }
-        User user = findUser(event.email().trim().toLowerCase(Locale.ROOT));
+        User user = identities.findUser(event.issuer(), event.subject());
         if (user == null) {
+            // Nobody signed in with this identity here: there is no session or account of it to touch.
+            LOGGER.info("OpenID provider event for an identity that is not linked to any account");
             return;
         }
 
@@ -118,11 +122,14 @@ public class OpenIdLifecycle {
     }
 
     /**
-     * Same lookup the OpenID sign-in uses, so the account that signed in is the account that is switched off.
+     * Ends every web session of the user that began before now, for example because the user is now active in
+     * another tenant.
      */
-    protected User findUser(String lowerCaseEmail) throws StorageException {
-        return storage.getObject(User.class, new Request(
-                new Columns.All(), new Condition.Equals("LOWER(email)", lowerCaseEmail)));
+    public void endSessions(User user) throws Exception {
+        user.set(SESSIONS_NOT_BEFORE, System.currentTimeMillis());
+        storage.updateObject(user, new Request(
+                new Columns.Include("attributes"), new Condition.Equals("id", user.getId())));
+        cacheManager.invalidateObject(true, User.class, user.getId(), ObjectOperation.UPDATE);
     }
 
     public void rememberLogoutUrl(User user, String url) throws StorageException {
