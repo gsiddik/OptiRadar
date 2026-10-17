@@ -10,7 +10,7 @@ FIXED_AND_TESTED / BLOCKED. Design and rollout: `docs/governance.md`.
 | R05 | Entry points other than REST are unguarded | FIXED_AND_TESTED | REST `GovernanceRequestFilter.filter:69` + `@Governed` on every resource; WebSocket `AsyncSocketServlet:90-98`, `AsyncSocket` re-check; `MediaFilter:83`; `NotificationManager`; `TaskReports`; reports/exports split view/export | `GovernanceRequestFilterTest`, `GovernanceCoverageTest`, `GovernanceGuardTest` | `AsyncSocket` re-check has no unit test (verified by reading only) |
 | R05b | Tenant user escalates through native objects | FIXED_AND_TESTED | `GovernanceGuard` (tenant attribute, reserved user attributes, placement, notification+command); `OpenIdProvider` ignores admin claim when governed | `GovernanceGuardTest` | none |
 | R05c | Startup depends on the identity provider | FIXED_AND_TESTED | `OpenIdProvider` lazy, retrying discovery; governance does no I/O at start | `OpenIdProviderTest` (27 with Catalog) | none |
-| R08/A25 | Delegation of users and roles | CONFIRMED | not started in this checkpoint | - | batch R2 |
+| R08/A25 | Delegation of users and roles | FIXED_AND_TESTED (server) | `governance/DelegationService.java`, `api/resource/AccessResource.java` (`/api/access/*`, `optiradar.access.manage`), audit `LogAction.delegation` | `DelegationServiceTest` (25), `AccessResourceTest` (5) | web pages: see optiradar-web status |
 | A29/R06 | Product switcher | CONFIRMED | not started in this checkpoint | - | batch R3 |
 | A10 | Telematics scope | CONFIRMED | not started in this checkpoint | - | batch R4 |
 | A12/A15 | Web error handling and bundle | CONFIRMED | optiradar-web, see its own status file | - | batch R5 |

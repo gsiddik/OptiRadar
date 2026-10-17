@@ -553,6 +553,26 @@ public class GovernanceService {
         }
     }
 
+    /**
+     * The roles of one person changed at OptiNexus through this server: forget what is known about them, so the next
+     * request asks again instead of using up to five minutes of old grants.
+     */
+    public void invalidateSubject(String tenantId, String subject) {
+        if (tenantId != null && subject != null) {
+            grantCache.remove(tenantId.toLowerCase(Locale.ROOT) + "|" + subject.toLowerCase(Locale.ROOT));
+        }
+    }
+
+    /**
+     * A role of the tenant changed: everyone in the tenant may hold different grants now.
+     */
+    public void invalidateTenant(String tenantId) {
+        if (tenantId != null) {
+            String prefix = tenantId.toLowerCase(Locale.ROOT) + "|";
+            grantCache.keySet().removeIf(key -> key.startsWith(prefix));
+        }
+    }
+
     public void invalidateAll() {
         principals.clear();
         grantKeys.clear();

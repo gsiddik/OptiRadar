@@ -91,6 +91,38 @@ change needs two deliberate edits.
   delegable is a business/privacy decision; they are delegable now and can be tightened by changing the flag and bumping
   `REVISION` (recorded in the status file as an owner decision).
 
+## Access management: users and custom roles (R08/A25)
+
+An Admin Tenant manages the users and custom roles of **their own tenant** from OptiRadar. OptiRadar stores nothing: each
+call is forwarded to the OptiNexus delegation API with OptiRadar's service account (scope `tenant.delegate`, bound to the
+`optiradar` application). Needs `governance.enable`, permission `optiradar.access.manage` (not delegable) and the tenant
+entitlement `optiradar.access.users`. A native administrator or password user has no OptiNexus identity to act as and is
+refused (`delegation_actor_required`).
+
+| Route (`/api/access/...`) | OptiNexus (`/api/v1/delegation/tenants/{tenant}/...`) |
+|---|---|
+| `GET catalog` | `GET /catalog` delegable permissions and assignable roles |
+| `GET users?search=&perPage=` | `GET /users` (paged, `meta.pagination`) |
+| `POST users` `{email,name,initial_password?,role_ids?}` | `POST /users` (201 created, 200 linked/existing) |
+| `PUT users/{user}/roles` `{role_ids}` | `PUT /users/{user}/roles` |
+| `DELETE users/{user}` | `DELETE /users/{user}` |
+| `POST roles` / `PUT roles/{role}` / `DELETE roles/{role}` | same on `/roles` |
+
+* Requests and answers are OptiNexus' own documents (snake_case) wrapped as `{data, meta}`; **no `tenant_id` or
+  `acting_user_id` is accepted from the caller** (such a field is a 422): the tenant and the acting user (the signed-in
+  user's OptiNexus subject) come from the identity link. Unknown fields are refused, ids in the path must be UUIDs.
+* OptiNexus verifies on every call that the actor is an active Admin Tenant with access to OptiRadar and decides which
+  permissions are delegable (`PERMISSION_NOT_DELEGABLE` with the offending keys).
+* Errors (`{error, message, nexusCode, details, correlationId}`): the OptiNexus code lower-cased with the prefix
+  `delegation_` and its status (403/404/409/422; 400 becomes 422); `delegation_unavailable` (503, `Retry-After`) when
+  OptiNexus does not answer within `governance.connectTimeout`/`readTimeout`; `delegation_misconfigured` (503) when the
+  service account is not bound or lacks the scope (an operator problem, logged as an error);
+  `delegation_unexpected` (502) for a status that is not in the contract.
+* Every change is written to the audit trail (`GET /api/audit`, operator only) as action `delegation` with operation,
+  target (an id or the e-mail/role name, never a password), outcome (`ok` or the refusal code) and the correlation id.
+* After a change the grants cached for the affected user (or for the whole tenant when a role changes) are dropped, so
+  the next request already sees the new access. OptiNexus queues the back-channel logout when a user is removed.
+
 ## Native flags in Nexus mode (what happens to Traccar's `administrator`, `readonly`, `disabled`, limits)
 
 | Native flag | Governed + OpenID-linked tenant user | Local account (operator) |
@@ -102,7 +134,7 @@ change needs two deliberate edits.
 | device/group links | the tenant boundary and per-user narrowing, operator-managed | unchanged |
 
 Tenant users cannot list or create users, impersonate (`/session/{id}`), list `/permissions`, or use the OIDC-IdP
-endpoints. User management for a tenant is done through OptiNexus delegation (see the access-management batch).
+endpoints. User management for a tenant is done through OptiNexus delegation (see the access-management section).
 
 ## Configuration keys
 

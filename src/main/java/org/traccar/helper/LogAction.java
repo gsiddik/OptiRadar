@@ -64,6 +64,7 @@ public final class LogAction {
     private static final String ACTION_ACCUMULATORS = "accumulators";
     private static final String ACTION_COMMAND = "command";
     private static final String ACTION_REPORT = "report";
+    private static final String ACTION_DELEGATION = "delegation";
 
     public void create(HttpServletRequest request, long userId, BaseModel object) {
         logObjectAction(request, ACTION_CREATE, userId, object.getClass(), object.getId());
@@ -181,6 +182,25 @@ public final class LogAction {
         action.set("to", DATE_FORMAT.format(to.toInstant()));
         action.set("devices", deviceIds.toString());
         action.set("groups", groupIds.toString());
+        storeAction(action);
+    }
+
+    /**
+     * An access-management change (user or role of the tenant) forwarded to OptiNexus. {@code outcome} is "ok" or the
+     * refusal code; nothing secret (no password, no token) is ever recorded.
+     */
+    public void delegation(
+            HttpServletRequest request, long userId, String operation, String target, String outcome,
+            String correlationId) {
+        Action action = new Action();
+        action.setAddress(WebHelper.retrieveRemoteAddress(request));
+        action.setUserId(userId);
+        action.setActionType(ACTION_DELEGATION);
+        action.setObjectType("nexusDelegation");
+        action.set("operation", operation);
+        action.set("target", target);
+        action.set("outcome", outcome);
+        action.set("correlationId", correlationId);
         storeAction(action);
     }
 

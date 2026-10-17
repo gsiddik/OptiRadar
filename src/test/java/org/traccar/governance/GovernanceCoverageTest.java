@@ -2,7 +2,6 @@ package org.traccar.governance;
 
 import org.junit.jupiter.api.Test;
 import org.traccar.api.BaseResource;
-import org.traccar.helper.ClassScanner;
 
 import jakarta.annotation.security.PermitAll;
 import jakarta.ws.rs.DELETE;
@@ -11,11 +10,18 @@ import jakarta.ws.rs.HEAD;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
+import java.io.File;
 import java.lang.reflect.Method;
+import java.net.URL;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -34,9 +40,6 @@ public class GovernanceCoverageTest {
     private static final Set<String> INTEGRATION_ROUTES = Set.of(
             "DeviceResource.get", "DeviceResource.getSingle", "GroupResource.get", "GroupResource.getSingle",
             "PositionResource.getJson");
-
-    /** Permissions whose routes arrive in a later batch of the governance work. */
-    private static final Set<String> NOT_YET = Set.of(Catalog.ACCESS_MANAGE);
 
     private record Route(Class<?> type, Method method, String verb) {
         String name() {
@@ -59,9 +62,45 @@ public class GovernanceCoverageTest {
         return null;
     }
 
+    /**
+     * Every class of the resource package on the whole class path (test and main output directories both contain that
+     * package, so the first directory alone is not enough).
+     */
+    private static List<Class<?>> resourceClasses() throws Exception {
+        String packageName = "org.traccar.api.resource";
+        String path = packageName.replace('.', '/');
+        Set<String> names = new TreeSet<>();
+        for (URL url : Collections.list(BaseResource.class.getClassLoader().getResources(path))) {
+            if (url.getProtocol().equals("file")) {
+                File[] files = new File(url.toURI()).listFiles();
+                for (File file : files != null ? files : new File[0]) {
+                    if (file.getName().endsWith(".class") && !file.getName().contains("$")) {
+                        names.add(file.getName().substring(0, file.getName().length() - 6));
+                    }
+                }
+            } else if (url.getProtocol().equals("jar")) {
+                String file = URLDecoder.decode(url.getFile(), StandardCharsets.UTF_8);
+                try (JarFile jar = new JarFile(file.substring(5, file.indexOf('!')))) {
+                    jar.stream().map(JarEntry::getName)
+                            .filter(name -> name.startsWith(path + "/") && name.endsWith(".class")
+                                    && !name.contains("$"))
+                            .forEach(name -> names.add(name.substring(path.length() + 1, name.length() - 6)));
+                }
+            }
+        }
+        List<Class<?>> classes = new ArrayList<>();
+        for (String name : names) {
+            Class<?> type = Class.forName(packageName + "." + name);
+            if (BaseResource.class.isAssignableFrom(type)) {
+                classes.add(type);
+            }
+        }
+        return classes;
+    }
+
     private static List<Route> routes() throws Exception {
         List<Route> routes = new ArrayList<>();
-        for (Class<?> type : ClassScanner.findSubclasses(BaseResource.class, "org.traccar.api.resource")) {
+        for (Class<?> type : resourceClasses()) {
             if (!type.isAnnotationPresent(Path.class)) {
                 continue;
             }
@@ -118,7 +157,6 @@ public class GovernanceCoverageTest {
     @Test
     public void everyCatalogPermissionIsEnforcedSomewhere() throws Exception {
         Set<String> used = new TreeSet<>(ENFORCED_ELSEWHERE);
-        used.addAll(NOT_YET);
         for (Route route : routes()) {
             var requirement = GovernanceRequestFilter.requirement(route.method(), route.type(), route.verb());
             if (requirement != null) {

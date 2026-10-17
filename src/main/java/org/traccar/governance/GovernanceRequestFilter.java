@@ -338,12 +338,22 @@ public class GovernanceRequestFilter implements ContainerRequestFilter {
         return builder.build();
     }
 
-    static String correlationId(ContainerRequestContext context) {
-        String given = context.getHeaderString("X-Correlation-Id");
-        if (given != null && CORRELATION.matcher(given).matches()) {
-            return given;
+    private static final String CORRELATION_PROPERTY = "optiradar.correlationId";
+
+    /**
+     * The reference of this request: the caller's own when it is well formed, otherwise a fresh one. It is decided once
+     * per request, so the answer, the log and the audit trail all carry the same value.
+     */
+    public static String correlationId(ContainerRequestContext context) {
+        Object known = context.getProperty(CORRELATION_PROPERTY);
+        if (known instanceof String value) {
+            return value;
         }
-        return UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+        String given = context.getHeaderString("X-Correlation-Id");
+        String value = given != null && CORRELATION.matcher(given).matches()
+                ? given : UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+        context.setProperty(CORRELATION_PROPERTY, value);
+        return value;
     }
 
 }

@@ -125,23 +125,37 @@ public class NexusClient {
         return System.currentTimeMillis();
     }
 
+    /**
+     * The {@code data} and {@code meta} nodes of an OptiNexus envelope (missing nodes are empty, never null).
+     */
+    public record Envelope(JsonNode data, JsonNode meta, int status) {
+    }
+
     public JsonNode get(String scope, String path) throws UnavailableException, RejectedException {
-        return call("GET", scope, path, null);
+        return call("GET", scope, path, null).data();
     }
 
     public JsonNode post(String scope, String path, Object body) throws UnavailableException, RejectedException {
-        return call("POST", scope, path, body);
+        return call("POST", scope, path, body).data();
     }
 
     public JsonNode put(String scope, String path, Object body) throws UnavailableException, RejectedException {
-        return call("PUT", scope, path, body);
+        return call("PUT", scope, path, body).data();
     }
 
     public JsonNode delete(String scope, String path) throws UnavailableException, RejectedException {
-        return call("DELETE", scope, path, null);
+        return call("DELETE", scope, path, null).data();
     }
 
-    private JsonNode call(String method, String scope, String path, Object body)
+    /**
+     * Same calls with the whole envelope (pagination metadata and the HTTP status, for example 201 created).
+     */
+    public Envelope request(String method, String scope, String path, Object body)
+            throws UnavailableException, RejectedException {
+        return call(method, scope, path, body);
+    }
+
+    private Envelope call(String method, String scope, String path, Object body)
             throws UnavailableException, RejectedException {
         if (!configured()) {
             throw new UnavailableException("OptiNexus is not configured", 60, null);
@@ -182,7 +196,7 @@ public class NexusClient {
         }
     }
 
-    private JsonNode interpret(int status, String text, String retryAfter)
+    private Envelope interpret(int status, String text, String retryAfter)
             throws UnavailableException, RejectedException {
         JsonNode root = null;
         try {
@@ -194,7 +208,7 @@ public class NexusClient {
             if (root == null || !root.path("success").asBoolean(false)) {
                 throw new UnavailableException("OptiNexus gave an unexpected answer", DEFAULT_RETRY_AFTER, null);
             }
-            return root.path("data");
+            return new Envelope(root.path("data"), root.path("meta"), status);
         }
         if (status == 401 || status == 408 || status == 429 || status >= 500) {
             int wait = DEFAULT_RETRY_AFTER;

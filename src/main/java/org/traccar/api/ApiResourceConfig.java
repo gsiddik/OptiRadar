@@ -19,6 +19,7 @@ import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.traccar.api.resource.ServerResource;
 import org.traccar.api.security.SecurityRequestFilter;
+import org.traccar.governance.DelegationExceptionMapper;
 import org.traccar.governance.GovernanceExceptionMapper;
 import org.traccar.governance.GovernanceRequestFilter;
 import org.traccar.helper.ObjectMapperContextResolver;
@@ -38,6 +39,7 @@ public final class ApiResourceConfig {
                 SecurityRequestFilter.class,
                 GovernanceRequestFilter.class,
                 GovernanceExceptionMapper.class,
+                DelegationExceptionMapper.class,
                 ResourceErrorHandler.class,
                 StreamWriter.class);
         resourceConfig.packages(ServerResource.class.getPackage().getName());
