@@ -182,11 +182,13 @@ public class SessionResource extends BaseResource {
     @PermitAll
     @Path("openid/auth")
     @GET
-    public Response openIdAuth(@QueryParam("redirect_uri") String redirectUri) throws GeneralSecurityException {
+    public Response openIdAuth(
+            @QueryParam("redirect_uri") String redirectUri, @QueryParam("tenant_hint") String tenantHint)
+            throws GeneralSecurityException {
         if (openIdProvider == null) {
             throw new UnsupportedOperationException("OpenID not enabled");
         }
-        return Response.seeOther(openIdProvider.createAuthUri(request, redirectUri))
+        return Response.seeOther(openIdProvider.createAuthUri(request, redirectUri, tenantHint))
                 .header("Cache-Control", "no-store")
                 .build();
     }

@@ -69,8 +69,10 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * OpenID Connect authorization-code sign-in with a confidential client.
@@ -88,6 +90,9 @@ public class OpenIdProvider {
 
     static final String BROWSER_KEY = "openidBrowser";
     private static final String MOBILE_SCHEME = "org.traccar.manager";
+    private static final Pattern TENANT_ID = Pattern.compile(
+            "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
+    private static final Pattern TENANT_CODE = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]{0,63}");
 
     /**
      * What the provider publishes (or the configuration states when there is no discovery).
@@ -268,6 +273,30 @@ public class OpenIdProvider {
      * @param mobileRedirect redirect address of the mobile app, only honored when openid.allowMobileRedirect is set
      */
     public URI createAuthUri(HttpServletRequest request, String mobileRedirect) throws GeneralSecurityException {
+        return createAuthUri(request, mobileRedirect, null);
+    }
+
+    /**
+     * Accepts only a tenant id (UUID) or a tenant code as a sign-in hint; anything else is dropped (null), never
+     * repaired and never forwarded.
+     */
+    public static String validTenantHint(String hint) {
+        if (hint == null) {
+            return null;
+        }
+        String value = hint.trim();
+        if (TENANT_ID.matcher(value).matches()) {
+            return value.toLowerCase(Locale.ROOT);
+        }
+        return TENANT_CODE.matcher(value).matches() ? value : null;
+    }
+
+    /**
+     * Same, with an optional tenant hint (see {@link #validTenantHint}): the provider skips its organization picker
+     * and continues in that tenant, still without the user entering credentials again. An invalid hint is ignored.
+     */
+    public URI createAuthUri(HttpServletRequest request, String mobileRedirect, String tenantHint)
+            throws GeneralSecurityException {
         Metadata provider = metadata();
         String redirectUri = callbackUrl.toString();
         String browser = null;
@@ -292,13 +321,17 @@ public class OpenIdProvider {
         if (adminGroup != null) {
             scope.add(groupsClaimName);
         }
-        return new AuthenticationRequest.Builder(new ResponseType("code"), scope, clientId, URI.create(redirectUri))
+        AuthenticationRequest.Builder builder = new AuthenticationRequest.Builder(
+                new ResponseType("code"), scope, clientId, URI.create(redirectUri))
                 .endpointURI(provider.authUrl())
                 .state(new State(pending.state()))
                 .nonce(new Nonce(pending.nonce()))
-                .codeChallenge(verifier, CodeChallengeMethod.S256)
-                .build()
-                .toURI();
+                .codeChallenge(verifier, CodeChallengeMethod.S256);
+        String hint = validTenantHint(tenantHint);
+        if (hint != null) {
+            builder.customParameter("tenant_hint", hint);
+        }
+        return builder.build().toURI();
     }
 
     protected OIDCTokenResponse getToken(

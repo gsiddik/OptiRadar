@@ -56,6 +56,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -65,6 +66,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -281,6 +283,43 @@ public class OpenIdProviderTest {
         assertNotEquals(first.getState(), second.getState());
         assertNotEquals(first.getNonce(), second.getNonce());
         assertNotEquals(first.getCodeChallenge(), second.getCodeChallenge());
+    }
+
+    @Test
+    public void aTenantHintIsForwardedOnlyWhenItIsATenantIdOrCode() throws Exception {
+        Browser browser = new Browser();
+        String id = "0B1F6C1E-6A3A-4C5E-9D52-6F0F6A1B2C01";
+
+        assertEquals(id.toLowerCase(), AuthenticationRequest.parse(provider.createAuthUri(browser.request(), null, id))
+                .getCustomParameter("tenant_hint").get(0));
+        assertEquals("acme-2.eu", AuthenticationRequest.parse(
+                provider.createAuthUri(browser.request(), null, " acme-2.eu ")).getCustomParameter("tenant_hint").get(0));
+        assertNull(AuthenticationRequest.parse(provider.createAuthUri(browser.request(), null))
+                .getCustomParameter("tenant_hint"));
+
+        List<String> invalid = List.of(
+                "", "  ", "a b", "a&redirect_uri=https://evil.example.test", "../etc", "javascript:alert(1)",
+                "-leading-dash", "x".repeat(65), "tenant\nid", "https://evil.example.test", "a=b", "\u00e4");
+        for (String hint : invalid) {
+            AuthenticationRequest request = AuthenticationRequest.parse(
+                    provider.createAuthUri(browser.request(), null, hint));
+            assertNull(request.getCustomParameter("tenant_hint"), "dropped: " + hint);
+            assertEquals(WEB + "/api/session/openid/callback", request.getRedirectionURI().toString());
+        }
+    }
+
+    @Test
+    public void aTenantHintNeverChangesStatePkceNonceOrTheCallback() throws Exception {
+        Browser browser = new Browser();
+
+        AuthenticationRequest request = AuthenticationRequest.parse(
+                provider.createAuthUri(browser.request(), null, "acme"));
+
+        assertEquals(CodeChallengeMethod.S256, request.getCodeChallengeMethod());
+        assertNotNull(request.getState());
+        assertNotNull(request.getNonce());
+        assertEquals(WEB + "/api/session/openid/callback", request.getRedirectionURI().toString());
+        assertEquals(Set.of("tenant_hint"), request.getCustomParameters().keySet());
     }
 
     @Test

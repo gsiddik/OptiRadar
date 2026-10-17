@@ -11,14 +11,14 @@ FIXED_AND_TESTED / BLOCKED. Design and rollout: `docs/governance.md`.
 | R05b | Tenant user escalates through native objects | FIXED_AND_TESTED | `GovernanceGuard` (tenant attribute, reserved user attributes, placement, notification+command); `OpenIdProvider` ignores admin claim when governed | `GovernanceGuardTest` | none |
 | R05c | Startup depends on the identity provider | FIXED_AND_TESTED | `OpenIdProvider` lazy, retrying discovery; governance does no I/O at start | `OpenIdProviderTest` (27 with Catalog) | none |
 | R08/A25 | Delegation of users and roles | FIXED_AND_TESTED (server) | `governance/DelegationService.java`, `api/resource/AccessResource.java` (`/api/access/*`, `optiradar.access.manage`), audit `LogAction.delegation` | `DelegationServiceTest` (25), `AccessResourceTest` (5) | web pages: see optiradar-web status |
-| A29/R06 | Product switcher | CONFIRMED | not started in this checkpoint | - | batch R3 |
+| A29/R06 | Product switcher | FIXED_AND_TESTED (server) | `GovernanceService.products`, `ProductContext`, `GovernanceResource.products` (`/api/governance/products`), `OpenIdProvider.createAuthUri(.., tenantHint)` + `validTenantHint`, `SessionResource.openIdAuth` | `ProductSwitcherTest` (23), `ProductContextTest` (7), `GovernanceResourceProductsTest` (4), `OpenIdProviderTest` (+2) | web switcher: see optiradar-web status |
 | A10 | Telematics scope | CONFIRMED | not started in this checkpoint | - | batch R4 |
 | A12/A15 | Web error handling and bundle | CONFIRMED | optiradar-web, see its own status file | - | batch R5 |
 
 ## Commands run (this repo)
 
 * Tests: `bash /tmp/claude-0/radar-test.sh`-style scratch build (`rt.sh`), `--select-package org.traccar.governance`:
-  114 tests, 0 failed. Whole scratch suite `--scan-classpath`: 800 passed, 0 failed, 26 skipped, 1 aborted (assumption).
+  178 tests, 0 failed. Whole scratch suite `--scan-classpath`: 800 passed, 0 failed, 26 skipped, 1 aborted (assumption).
 * Style: `gradle checkstyleMain checkstyleTest -x compileJava -x compileTestJava` in `/tmp/claude-0/cs`: clean.
 * NOT_RUN: Gradle `./gradlew test` of the repository itself (the sandbox has no network for the build plugins; the scratch
   build compiles the same sources with the same test classpath), live run against a real OptiNexus (contract is covered

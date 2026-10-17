@@ -50,6 +50,7 @@ public class GovernanceService {
     private static final int MAX_TTL_SECONDS = 300;
     private static final int DENY_TTL_SECONDS = 30;
     private static final int PRINCIPAL_TTL_SECONDS = 30;
+    private static final long MIN_REFRESH_MILLIS = 5000;
     private static final int MAX_CACHE_ENTRIES = 20000;
     private static final int LOCK_STRIPES = 32;
     private static final Pattern UUID = Pattern.compile(
@@ -67,6 +68,16 @@ public class GovernanceService {
      * What a tenant bought for OptiRadar.
      */
     record Entitlements(boolean applicationEnabled, Set<String> enabled, Set<String> disabled, long expires) {
+    }
+
+    /**
+     * What a switcher may show, and when OptiNexus was asked.
+     */
+    public record Products(
+            ProductContext.Tenant tenant, List<ProductContext.Product> products, long expiresAt, int ttlSeconds) {
+    }
+
+    private record CachedProducts(Products products, long fetched, long expires) {
     }
 
     private record CachedPrincipal(
@@ -93,6 +104,7 @@ public class GovernanceService {
 
     private final Map<String, Grants> grantCache = new ConcurrentHashMap<>();
     private final Map<String, Entitlements> entitlementCache = new ConcurrentHashMap<>();
+    private final Map<String, CachedProducts> productCache = new ConcurrentHashMap<>();
     private final Map<Long, CachedPrincipal> principals = new ConcurrentHashMap<>();
     private final Map<Long, String> grantKeys = new ConcurrentHashMap<>();
     private final Object[] locks = new Object[LOCK_STRIPES];
@@ -359,21 +371,91 @@ public class GovernanceService {
                 Catalog.REVISION);
     }
 
+    /**
+     * The products the signed-in user may open from here (OptiNexus {@code product-context}): only what the tenant
+     * subscribes to and the user was assigned, never the governance portal, each with the address that continues the
+     * same tenant. Cached for at most five minutes; {@code fresh} asks again (at most once every five seconds per
+     * user, so a busy switcher cannot flood OptiNexus). Nothing is listed when OptiNexus cannot answer.
+     *
+     * <p>When OptiNexus says the user's access ended ({@code allowed=false}) the grants and product cache of the user
+     * are dropped, the user's sessions end, and this throws a 401 that ends the browser session too.</p>
+     */
+    public Products products(GovernedPrincipal principal, boolean fresh) {
+        if (principal.kind() == GovernedPrincipal.Kind.OPERATOR) {
+            return new Products(null, List.of(), 0, 0);
+        }
+        requireSignedIn(principal);
+        String key = principal.tenantId() + "|" + principal.subject();
+        CachedProducts cached = productCache.get(key);
+        if (reusable(cached, fresh)) {
+            return cached.products();
+        }
+        synchronized (lock(key)) {
+            cached = productCache.get(key);
+            if (reusable(cached, fresh)) {
+                return cached.products();
+            }
+            failFastIfDown(now());
+            try {
+                JsonNode data = nexus.post(SCOPE_AUTHORIZATION, "/api/v1/authorization/product-context",
+                        Map.of("user_id", principal.subject(), "tenant_id", principal.tenantId()));
+                ProductContext.Decision decision = ProductContext.parse(
+                        data, principal.subject(), principal.tenantId(), applicationCode);
+                if (!decision.allowed()) {
+                    LOGGER.info("OptiNexus ended the access of user {}: {}", principal.userId(),
+                            decision.denyReason());
+                    productCache.remove(key);
+                    invalidate(principal.userId());
+                    endSessions(principal.userId());
+                    throw new GovernanceException(401, GovernanceException.ACCESS_REVOKED,
+                            "OptiNexus reports the access ended: " + decision.denyReason(), null, 0, true);
+                }
+                int ttl = Math.max(1, Math.min(ttlSeconds, decision.ttlSeconds()));
+                long fetched = now();
+                long expires = fetched + TimeUnit.SECONDS.toMillis(ttl);
+                Products products = new Products(decision.tenant(), decision.products(), expires, ttl);
+                if (productCache.size() > MAX_CACHE_ENTRIES) {
+                    productCache.clear();
+                }
+                productCache.put(key, new CachedProducts(products, fetched, expires));
+                grantKeys.put(principal.userId(), key);
+                return products;
+            } catch (NexusClient.UnavailableException e) {
+                throw down(e);
+            } catch (IllegalArgumentException e) {
+                LOGGER.warn("OptiNexus gave a product answer that does not match the request: {}", e.getMessage());
+                throw new GovernanceException(503, GovernanceException.UNAVAILABLE, "OptiNexus answered for another "
+                        + "subject", null, 30, false);
+            } catch (NexusClient.RejectedException e) {
+                // Not a decision about the user's access (that is asked per request): list nothing.
+                LOGGER.error("OptiNexus refused the product question ({}): check the service account binding "
+                        + "and its authorization.check scope", e.getCode());
+                throw new GovernanceException(503, GovernanceException.UNAVAILABLE, "OptiNexus refused the product "
+                        + "question", null, 30, false);
+            }
+        }
+    }
+
+    private boolean reusable(CachedProducts cached, boolean fresh) {
+        long now = now();
+        return cached != null && now < cached.expires() && (!fresh || now - cached.fetched() < MIN_REFRESH_MILLIS);
+    }
+
     // ---------------------------------------------------------------------------------------------------------
     // OptiNexus calls
 
-    private Object lock(String key) {
+    Object lock(String key) {
         return locks[Math.floorMod(key.hashCode(), LOCK_STRIPES)];
     }
 
-    private void failFastIfDown(long now) {
+    void failFastIfDown(long now) {
         if (now < unavailableUntil) {
             throw new GovernanceException(503, GovernanceException.UNAVAILABLE, "OptiNexus is not reachable",
                     null, unavailableRetry, false);
         }
     }
 
-    private GovernanceException down(NexusClient.UnavailableException e) {
+    GovernanceException down(NexusClient.UnavailableException e) {
         int retry = Math.max(1, Math.min(120, e.getRetryAfterSeconds()));
         unavailableRetry = retry;
         unavailableUntil = now() + TimeUnit.SECONDS.toMillis(retry);
@@ -550,6 +632,7 @@ public class GovernanceService {
         String key = grantKeys.remove(userId);
         if (key != null) {
             grantCache.remove(key);
+            productCache.remove(key);
         }
     }
 
@@ -559,7 +642,9 @@ public class GovernanceService {
      */
     public void invalidateSubject(String tenantId, String subject) {
         if (tenantId != null && subject != null) {
-            grantCache.remove(tenantId.toLowerCase(Locale.ROOT) + "|" + subject.toLowerCase(Locale.ROOT));
+            String key = tenantId.toLowerCase(Locale.ROOT) + "|" + subject.toLowerCase(Locale.ROOT);
+            grantCache.remove(key);
+            productCache.remove(key);
         }
     }
 
@@ -570,6 +655,7 @@ public class GovernanceService {
         if (tenantId != null) {
             String prefix = tenantId.toLowerCase(Locale.ROOT) + "|";
             grantCache.keySet().removeIf(key -> key.startsWith(prefix));
+            productCache.keySet().removeIf(key -> key.startsWith(prefix));
         }
     }
 
@@ -577,6 +663,7 @@ public class GovernanceService {
         principals.clear();
         grantKeys.clear();
         grantCache.clear();
+        productCache.clear();
         entitlementCache.clear();
     }
 

@@ -123,6 +123,38 @@ refused (`delegation_actor_required`).
 * After a change the grants cached for the affected user (or for the whole tenant when a role changes) are dropped, so
   the next request already sees the new access. OptiNexus queues the back-channel logout when a user is removed.
 
+## Product switcher (A29/R06)
+
+`GET /api/governance/products[?fresh=true]` (signed-in tenant user, no permission needed beyond access to OptiRadar) answers
+`{governed, tenant:{id,code,name}, products:[{code,name,url,current}], expiresAt, ttlSeconds}` from OptiNexus
+`POST /api/v1/authorization/product-context` (scope `authorization.check`; the body is only `user_id` and `tenant_id` of the
+authenticated principal). What the browser gets is reduced by `ProductContext`:
+
+* only products the tenant subscribes to and the user was assigned (OptiNexus decides); the governance portal (`cgo`) is
+  dropped here as well, even if it were sent;
+* `current` is decided by this server (`code == governance.applicationCode`), not by the answer;
+* a product needs a code, a name and an absolute `http(s)` address without credentials; `javascript:`, `data:`,
+  relative, credentialed or custom-scheme addresses are dropped; at most 20 products, duplicates dropped;
+* every `url` is the launch address plus `tenant_hint=<tenant id>` (an existing hint is replaced, the fragment is
+  dropped). No token, code or secret is ever added.
+
+Freshness: cached per `tenant|subject` for at most `min(ttl_seconds, governance.ttl, 300)`; `fresh=true` asks OptiNexus
+again but at most once every 5 seconds per user (a busy switcher cannot flood OptiNexus); concurrent renders share one
+question. The web app asks fresh when the switcher opens and again before it leaves for another product.
+
+Failure: OptiNexus down, a refused service account, a malformed answer or an answer about another user, tenant or
+application gives `503 governance_unavailable` and no products (nothing is cached, `Retry-After` is kept). An outage never
+ends a session. `allowed=false` (any `deny_reason`) means OptiNexus ended the access: the user's cached grants and products
+are dropped, the user's sessions end (`OpenIdLifecycle`), the browser session is invalidated and the answer is
+`401 governance_access_revoked`. Operators (native administrators) get an empty list; accounts without OptiNexus grants get
+`403`.
+
+Target side (when OptiRadar is the product being opened): `GET /api/session/openid/auth?tenant_hint=<value>` forwards
+`tenant_hint` to OptiNexus `/oidc/authorize` only when it is a tenant id (UUID) or a tenant code
+(`[A-Za-z0-9][A-Za-z0-9._-]{0,63}`); anything else is silently dropped, never repaired. State, nonce and PKCE are created
+by the server as before; the hint never changes them. OptiRadar accepts no other target: there is no `next`/`return_to`
+parameter, and `redirect_uri` is only honoured for the mobile scheme when `openid.allowMobileRedirect` is on.
+
 ## Native flags in Nexus mode (what happens to Traccar's `administrator`, `readonly`, `disabled`, limits)
 
 | Native flag | Governed + OpenID-linked tenant user | Local account (operator) |

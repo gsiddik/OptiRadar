@@ -79,6 +79,14 @@ session and of every permission check; this is a contract change that is not mad
 the account and are not ended by a tenant switch (a deactivation does end them). Groups and devices that belong to no
 tenant are left alone.
 
+### Opening OptiRadar from another product (tenant hint)
+
+The product switchers of the other applications link to the launch URL plus `?tenant_hint=<tenant id>`. Both entry
+points accept it: `/api/session/openid/auth?tenant_hint=…` forwards it to `/oidc/authorize`, and the web app (when the
+launch URL is the web address) starts the same sign-in with the hint once, if the browser has no session. The hint is
+used only when it is a tenant id (UUID) or a tenant code; anything else is dropped. OptiNexus continues in that tenant
+using the existing single sign-on session, so no credentials are asked again. See `docs/governance.md` (Product switcher).
+
 ## Configuration (`conf/optiradar.xml`)
 
 ```xml
