@@ -5,20 +5,22 @@ FIXED_AND_TESTED / BLOCKED. Design and rollout: `docs/governance.md`.
 
 | Id | Finding | Status | Evidence | Tests | Remaining |
 |---|---|---|---|---|---|
-| A02 | Radar has no machine-readable permission catalog | FIXED_AND_TESTED | `governance/Catalog.java`, `ManifestExporter.java`, `docs/governance/optiradar-manifest.json` (v2.0, 8 modules, 22 features, 34 permissions, explicit `delegable`) | `CatalogTest` (6) | Nexus import dry-run NOT_RUN |
+| A02 | Radar has no machine-readable permission catalog (608fc11) | FIXED_AND_TESTED | `governance/Catalog.java`, `ManifestExporter.java`, `docs/governance/optiradar-manifest.json` (v2.0, 8 modules, 22 features, 34 permissions, explicit `delegable`) | `CatalogTest` (6) | Nexus import dry-run NOT_RUN |
 | R02 | Radar decides access with native flags, not Nexus | FIXED_AND_TESTED | `GovernanceService.require:235` (grants via effective-permissions + commercial-context), cache <= 300 s, fail closed, no fallback | `GovernanceServiceTest` (53) | none |
 | R05 | Entry points other than REST are unguarded | FIXED_AND_TESTED | REST `GovernanceRequestFilter.filter:69` + `@Governed` on every resource; WebSocket `AsyncSocketServlet:90-98`, `AsyncSocket` re-check; `MediaFilter:83`; `NotificationManager`; `TaskReports`; reports/exports split view/export | `GovernanceRequestFilterTest`, `GovernanceCoverageTest`, `GovernanceGuardTest` | `AsyncSocket` re-check has no unit test (verified by reading only) |
 | R05b | Tenant user escalates through native objects | FIXED_AND_TESTED | `GovernanceGuard` (tenant attribute, reserved user attributes, placement, notification+command); `OpenIdProvider` ignores admin claim when governed | `GovernanceGuardTest` | none |
 | R05c | Startup depends on the identity provider | FIXED_AND_TESTED | `OpenIdProvider` lazy, retrying discovery; governance does no I/O at start | `OpenIdProviderTest` (27 with Catalog) | none |
-| R08/A25 | Delegation of users and roles | FIXED_AND_TESTED (server) | `governance/DelegationService.java`, `api/resource/AccessResource.java` (`/api/access/*`, `optiradar.access.manage`), audit `LogAction.delegation` | `DelegationServiceTest` (25), `AccessResourceTest` (5) | web pages: see optiradar-web status |
-| A29/R06 | Product switcher | FIXED_AND_TESTED (server) | `GovernanceService.products`, `ProductContext`, `GovernanceResource.products` (`/api/governance/products`), `OpenIdProvider.createAuthUri(.., tenantHint)` + `validTenantHint`, `SessionResource.openIdAuth` | `ProductSwitcherTest` (23), `ProductContextTest` (7), `GovernanceResourceProductsTest` (4), `OpenIdProviderTest` (+2) | web switcher: see optiradar-web status |
-| A10 | Telematics scope | FIXED_AND_TESTED (Radar side); gateway gaps open | `docs/telematics.md` (inventory, T1-T8, scope matrix), `telematics/TelematicsSnapshot.java`, `api/resource/TelematicsResource.java` (`/api/telematics/v1/latest`, schema 1.0, additive), `database/DeviceTenants.java`, key `telematics.staleSeconds` | `TelematicsSnapshotTest` (20), `TelematicsResourceTest` (4), `DeviceTenantsTest` (4), `GovernanceCoverageTest` | OptiNexus gateway: T1 duplicate drop on fix time, units/time fields, connector switch; owner decisions D-T1..D-T3 |
-| A12/A15 | Web error handling and bundle | CONFIRMED | optiradar-web, see its own status file | - | batch R5 |
+| R08/A25 | Delegation of users and roles (b3a031e) | FIXED_AND_TESTED (server) | `governance/DelegationService.java`, `api/resource/AccessResource.java` (`/api/access/*`, `optiradar.access.manage`), audit `LogAction.delegation` | `DelegationServiceTest` (25), `AccessResourceTest` (5) | web pages: see optiradar-web status |
+| A29/R06 | Product switcher (d0ad51b) | FIXED_AND_TESTED (server) | `GovernanceService.products`, `ProductContext`, `GovernanceResource.products` (`/api/governance/products`), `OpenIdProvider.createAuthUri(.., tenantHint)` + `validTenantHint`, `SessionResource.openIdAuth` | `ProductSwitcherTest` (23), `ProductContextTest` (7), `GovernanceResourceProductsTest` (4), `OpenIdProviderTest` (+2) | web switcher: see optiradar-web status |
+| A10 | Telematics scope (83aa90f) | FIXED_AND_TESTED (Radar side); gateway gaps open | `docs/telematics.md` (inventory, T1-T8, scope matrix), `telematics/TelematicsSnapshot.java`, `api/resource/TelematicsResource.java` (`/api/telematics/v1/latest`, schema 1.0, additive), `database/DeviceTenants.java`, key `telematics.staleSeconds` | `TelematicsSnapshotTest` (20), `TelematicsResourceTest` (4), `DeviceTenantsTest` (4), `GovernanceCoverageTest` | OptiNexus gateway: T1 duplicate drop on fix time, units/time fields, connector switch; owner decisions D-T1..D-T3 |
+| A12/A15 | Web error handling and bundle | FIXED_AND_TESTED (web); service worker upgrade flow not run | optiradar-web `docs/status/ECOSYSTEM_AUDIT_STATUS.md` (boundaries, stale file recovery, map out of the first screen, route matrix) | web: `npm test` 25, browser 80 checks | SW upgrade test; `web.cacheControl` for `index.html`/`sw.js` is an ops rule (no server change made) |
 
 ## Commands run (this repo)
 
-* Tests: `bash /tmp/claude-0/radar-test.sh`-style scratch build (`rt.sh`), `--select-package org.traccar.governance`:
-  178 tests, 0 failed. Whole scratch suite `--scan-classpath`: 800 passed, 0 failed, 26 skipped, 1 aborted (assumption).
+* Tests (scratch runner `rt.sh`, same sources and classpath as Gradle): `--select-package org.traccar.governance` 178 tests,
+  0 failed (before the telematics batch); whole suite `--scan-classpath build/test-classes` after the last server batch:
+  921 found, 894 passed, 0 failed, 26 skipped, 1 aborted (assumption, existed before), three runs in a row.
+  `GovernanceServiceTest.endingSessionsIsRateLimited` was flaky on a same-millisecond comparison and got a 5 ms wait.
 * Style: `gradle checkstyleMain checkstyleTest -x compileJava -x compileTestJava` in `/tmp/claude-0/cs`: clean.
 * NOT_RUN: Gradle `./gradlew test` of the repository itself (the sandbox has no network for the build plugins; the scratch
   build compiles the same sources with the same test classpath), live run against a real OptiNexus (contract is covered
@@ -39,3 +41,9 @@ FIXED_AND_TESTED / BLOCKED. Design and rollout: `docs/governance.md`.
 * `effective-permissions` and `commercial-context` need scopes `authorization.check` and `commercial.read` on the
   Radar service account (token per scope).
 * No gap needing a Nexus change so far.
+
+## Work state (owner paused Radar work)
+
+* Done and pushed: R1 608fc11, R2 b3a031e, R3 d0ad51b, R4 83aa90f (this repo); R3 UI, R5 in optiradar-web.
+* Half done: none in this repo. Not started: nothing further; open items are only those in the Remaining column and the
+  Nexus gateway gaps in `docs/telematics.md`.
