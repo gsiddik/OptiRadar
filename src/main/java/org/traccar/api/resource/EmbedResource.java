@@ -24,10 +24,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import org.traccar.api.BaseResource;
 import org.traccar.database.EmbedSessionIssuer;
-import org.traccar.storage.StorageException;
 
-import java.io.IOException;
-import java.security.GeneralSecurityException;
 import java.util.Map;
 
 /**
@@ -45,7 +42,7 @@ public class EmbedResource extends BaseResource {
     @POST
     public Map<String, Object> open(
             @FormParam("tenantId") String tenantId,
-            @FormParam("ttl") Long ttl) throws StorageException, GeneralSecurityException, IOException {
+            @FormParam("ttl") Long ttl) throws Exception {
         permissionsService.checkAdmin(getUserId());
         long seconds = ttl != null ? ttl : EmbedSessionIssuer.MAX_TTL_SECONDS;
         EmbedSessionIssuer.Session session = issuer.issue(tenantId, seconds);

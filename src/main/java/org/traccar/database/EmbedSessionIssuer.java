@@ -28,8 +28,6 @@ import org.traccar.storage.query.Columns;
 import org.traccar.storage.query.Condition;
 import org.traccar.storage.query.Request;
 
-import java.io.IOException;
-import java.security.GeneralSecurityException;
 import java.util.Date;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -44,7 +42,7 @@ public class EmbedSessionIssuer {
 
     static final String EMAIL_PREFIX = "embed:";
     static final long MIN_TTL_SECONDS = 60;
-    static final long MAX_TTL_SECONDS = 900;
+    public static final long MAX_TTL_SECONDS = 900;
 
     private final Storage storage;
     private final CacheManager cacheManager;
@@ -63,8 +61,7 @@ public class EmbedSessionIssuer {
     public record Session(String token, Date expiration) {
     }
 
-    public Session issue(String tenantId, long ttlSeconds)
-            throws StorageException, GeneralSecurityException, IOException {
+    public Session issue(String tenantId, long ttlSeconds) throws Exception {
 
         long ttl = Math.max(MIN_TTL_SECONDS, Math.min(ttlSeconds, MAX_TTL_SECONDS));
         Group group = tenantLinker.findGroup(tenantId);
