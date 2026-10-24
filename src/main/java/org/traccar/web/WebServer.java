@@ -96,6 +96,12 @@ public class WebServer implements LifecycleObject {
 
         initWebApp(servletHandler);
 
+        if (config.hasKey(Keys.WEB_FRAME_ANCESTORS)) {
+            servletHandler.addFilter(
+                    new FilterHolder(new FrameAncestorsFilter(config.getString(Keys.WEB_FRAME_ANCESTORS))),
+                    "/*", EnumSet.allOf(DispatcherType.class));
+        }
+
         Handler.Sequence handlers = new Handler.Sequence();
         initClientProxy(servletHandler);
         handlers.addHandler(servletHandler);
