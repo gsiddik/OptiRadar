@@ -155,3 +155,25 @@ configuration file to `conf/optiradar.xml` and replaces the `traccar` service wi
 configuration keys, the database or the API changes, so OptiNexus and OptiFleet keep working without changes.
 On Windows, uninstall the old Traccar service first and copy its `conf` and `data` folders into the new OptiRadar
 folder. Docker deployments keep their own compose file; the samples in `docker/compose/` are for new installations.
+
+## OpenID `state` is checked (K5)
+
+With `openid.tenantClaim` set, the authorization request carries a random `state` that is kept in the browser session and must come back
+on `/api/session/openid/callback`. A callback this browser did not start (no remembered value, another value, or none) is refused and no
+session is created. Without `openid.tenantClaim` behaviour is unchanged.
+
+## Embedded map in another product (K5)
+
+OptiDeli shows the OptiRadar map in an iframe for its own tenant. OptiDeli never holds an OptiRadar credential: it asks OptiNexus
+(`POST /api/v1/embed/sessions`), and OptiNexus asks OptiRadar:
+
+* `POST /api/optinexus/embed` (form `tenantId`, `ttl` seconds, 60 to 900) with the API token of an **administrator** (the token OptiNexus
+  keeps as `OPTIRADAR_EMBED_TOKEN`; keep it separate from the read-only sync token). OptiRadar finds the one group of the tenant, creates a
+  temporary, read-only user for it (no commands, no reports) that expires with the token, and answers `{"token": "...", "expiresAt": "..."}`.
+  An unknown tenant is refused and nothing is created. Expired embed users are removed on the next call.
+* The URL OptiNexus returns is `https://<radar>/?embed=1&token=<token>`; the web app signs in with the token and hides the menu.
+* `web.frameAncestors` (`WEB_FRAME_ANCESTORS`) lists the origins allowed to frame the web app, for example
+  `<entry key='web.frameAncestors'>https://deli.example.com</entry>`. The server then sends
+  `Content-Security-Policy: frame-ancestors 'self' https://deli.example.com`. Only plain origins are accepted. When the key is not set
+  no such header is sent and behaviour is unchanged. Set it on every installation that serves an embed.
+* No session cookie is used inside the frame, so third-party-cookie blocking does not affect it.

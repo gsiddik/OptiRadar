@@ -2310,6 +2310,15 @@ public final class Keys {
             List.of(KeyType.CONFIG));
 
     /**
+     * Origins that may show the web app in a frame, space separated (for example the OptiDeli address). When set, the
+     * web app sends a Content-Security-Policy frame-ancestors header allowing these origins and itself; when not
+     * set, no such header is sent.
+     */
+    public static final ConfigKey<String> WEB_FRAME_ANCESTORS = new StringConfigKey(
+            "web.frameAncestors",
+            List.of(KeyType.CONFIG));
+
+    /**
      * Enable MCP service.
      */
     public static final ConfigKey<Boolean> WEB_MCP_ENABLE = new BooleanConfigKey(

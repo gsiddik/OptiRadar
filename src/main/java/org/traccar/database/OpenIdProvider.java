@@ -124,14 +124,19 @@ public class OpenIdProvider {
         tenantClaim = config.getString(Keys.OPENID_TENANT_CLAIM);
     }
 
-    public URI createAuthUri() {
+    public URI createAuthUri(HttpServletRequest request) {
         Scope scope = new Scope("openid", "profile", "email");
         if (adminGroup != null) {
             scope.add(groupsClaimName);
         }
+        State state = new State();
+        if (tenantClaim != null) {
+            // Tenant-bound (OptiNexus) logins refuse a callback this browser did not start.
+            OpenIdState.remember(request.getSession(true), state.getValue());
+        }
         return new AuthenticationRequest.Builder(new ResponseType("code"), scope, clientId, callbackUrl)
                 .endpointURI(authUrl)
-                .state(new State())
+                .state(state)
                 .build()
                 .toURI();
     }
@@ -182,6 +187,11 @@ public class OpenIdProvider {
         }
         AuthorizationResponse response = AuthorizationResponse.parse(
                 redirectUri, URLUtils.parseParameters(queryParameters));
+
+        if (tenantClaim != null) {
+            State returned = response.getState();
+            OpenIdState.verify(request.getSession(false), returned != null ? returned.getValue() : null);
+        }
 
         if (!response.indicatesSuccess()) {
             throw new GeneralSecurityException(response.toErrorResponse().getErrorObject().getDescription());
