@@ -87,6 +87,24 @@ public class OpenIdTenantLinker {
     }
 
     /**
+     * The tenants the user is linked to (tenant groups they are a direct member of); empty for a user that belongs to
+     * no tenant.
+     */
+    public Set<String> tenantsOf(long userId) throws StorageException {
+        Set<Long> linked = new HashSet<>();
+        for (Permission permission : storage.getPermissions(User.class, userId, Group.class, 0)) {
+            linked.add(permission.getPropertyId());
+        }
+        Set<String> tenants = new HashSet<>();
+        for (Group group : tenantGroups()) {
+            if (linked.contains(group.getId())) {
+                tenants.add(tenantOf(group));
+            }
+        }
+        return tenants;
+    }
+
+    /**
      * Makes the tenant group the only tenant group of the user. Groups and links that do not belong to a tenant
      * are left alone.
      */
