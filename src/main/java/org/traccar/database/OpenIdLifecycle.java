@@ -76,6 +76,15 @@ public class OpenIdLifecycle {
     }
 
     /**
+     * True when the provider ended this user's sessions after the token was issued. A token from before the issue
+     * time was recorded (created 0) cannot be shown to be newer, so it counts as revoked once sessions were ended.
+     */
+    public static boolean isTokenRevoked(User user, long tokenCreated) {
+        long notBefore = user.getLong(SESSIONS_NOT_BEFORE);
+        return notBefore > 0 && tokenCreated < notBefore;
+    }
+
+    /**
      * Switches an account on again if, and only if, an earlier event from the provider switched it off.
      *
      * @return true if the user was changed (the caller stores "disabled" and "attributes")

@@ -121,6 +121,10 @@ public class LoginService {
         User user = storage.getObject(User.class, new Request(
                 new Columns.All(), new Condition.Equals("id", tokenData.getUserId())));
         if (user != null) {
+            if (OpenIdLifecycle.isTokenRevoked(user, tokenData.getCreated())) {
+                // The OpenID provider ended this user's sessions after this token was issued.
+                throw new SecurityException("Token has been revoked");
+            }
             checkUserEnabled(user);
         }
         return new LoginResult(user, tokenData.getExpiration());

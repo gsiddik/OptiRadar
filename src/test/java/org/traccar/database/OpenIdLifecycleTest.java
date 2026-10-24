@@ -103,6 +103,27 @@ public class OpenIdLifecycleTest {
     }
 
     @Test
+    public void aCentralLogoutEndsTokensIssuedBeforeItAndKeepsLaterOnes() throws Exception {
+        User user = addUser("driver@example.test");
+        long before = System.currentTimeMillis() - 5000;
+
+        lifecycle.apply(logout("driver@example.test"));
+
+        User stored = reload(user);
+        assertTrue(OpenIdLifecycle.isTokenRevoked(stored, before));
+        assertTrue(OpenIdLifecycle.isTokenRevoked(stored, 0), "a token without an issue time cannot be shown to be newer");
+        assertFalse(OpenIdLifecycle.isTokenRevoked(stored, System.currentTimeMillis() + 1000));
+    }
+
+    @Test
+    public void tokensOfAUserThatWasNeverLoggedOutStayValid() throws Exception {
+        User user = addUser("driver@example.test");
+
+        assertFalse(OpenIdLifecycle.isTokenRevoked(reload(user), 0));
+        assertFalse(OpenIdLifecycle.isTokenRevoked(reload(user), 1));
+    }
+
+    @Test
     public void aUserThatWasNeverLoggedOutKeepsAllSessions() throws Exception {
         User user = addUser("driver@example.test");
 
