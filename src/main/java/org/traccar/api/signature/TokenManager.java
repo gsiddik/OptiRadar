@@ -51,6 +51,8 @@ public class TokenManager {
         private long userId;
         @JsonProperty("e")
         private Date expiration;
+        @JsonProperty("c")
+        private long created;
 
         public long getId() {
             return id;
@@ -62,6 +64,13 @@ public class TokenManager {
 
         public Date getExpiration() {
             return expiration;
+        }
+
+        /**
+         * Epoch milliseconds when the token was issued; 0 for a token issued before this field existed.
+         */
+        public long getCreated() {
+            return created;
         }
     }
 
@@ -81,6 +90,7 @@ public class TokenManager {
         TokenData data = new TokenData();
         data.userId = userId;
         data.id = random.nextLong() & Long.MAX_VALUE;
+        data.created = System.currentTimeMillis();
         if (expiration != null) {
             data.expiration = expiration;
         } else {
