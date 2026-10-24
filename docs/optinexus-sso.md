@@ -179,3 +179,18 @@ OptiDeli shows the OptiRadar map in an iframe for its own tenant. OptiDeli never
   `Content-Security-Policy: frame-ancestors 'self' https://deli.example.com`. Only plain origins are accepted. When the key is not set
   no such header is sent and behaviour is unchanged. Set it on every installation that serves an embed.
 * No session cookie is used inside the frame, so third-party-cookie blocking does not affect it.
+
+## Plan features (entitlements)
+
+With `optinexus.entitlements.enforce=true` OptiRadar refuses what the tenant's plan does not include: every `/api/reports/*` request needs
+the OptiNexus capability `trip_reports`, and creating, changing or deleting a geofence needs `geofences` (reading geofences and everything
+else is unchanged). The answer comes from `POST /api/v1/entitlements/check` (application `optiradar`) and is reused for
+`optinexus.entitlements.ttl` seconds (default 300); if OptiNexus cannot be reached the last answer is kept, and with no answer at all the
+feature is refused (HTTP 403). A user linked to several tenants may use a feature when any of their tenants has it; a user that belongs to
+no tenant group (a local administrator) is not limited.
+
+Before switching it on: the OptiRadar service account needs the scope `entitlement.check` in addition to `event.write`
+(`ecosystem:register-service-account optiradar --scopes=event.write,entitlement.check --rotate ...`), the settings `optinexus.baseUrl`,
+`optinexus.clientId` and `optinexus.clientSecret` must be set, and every tenant's plan must already contain the capabilities it is meant to
+keep (`tracking`, `reports`/`trip_reports`, `geofencing`/`geofences`), otherwise those tenants lose reports and geofence editing at once.
+It is off by default so existing installations keep working.

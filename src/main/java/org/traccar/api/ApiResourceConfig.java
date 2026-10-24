@@ -18,6 +18,7 @@ package org.traccar.api;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.traccar.api.resource.ServerResource;
+import org.traccar.api.security.FeatureEntitlementFilter;
 import org.traccar.api.security.SecurityRequestFilter;
 import org.traccar.helper.ObjectMapperContextResolver;
 
@@ -34,6 +35,7 @@ public final class ApiResourceConfig {
                 ObjectMapperContextResolver.class,
                 DateParameterConverterProvider.class,
                 SecurityRequestFilter.class,
+                FeatureEntitlementFilter.class,
                 ResourceErrorHandler.class,
                 StreamWriter.class);
         resourceConfig.packages(ServerResource.class.getPackage().getName());

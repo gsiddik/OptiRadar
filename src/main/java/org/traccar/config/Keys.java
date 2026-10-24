@@ -975,6 +975,24 @@ public final class Keys {
             7);
 
     /**
+     * Refuse the OptiRadar features a tenant's plan does not include (reports, geofence changes), asking OptiNexus
+     * (POST /api/v1/entitlements/check, scope entitlement.check). Users that belong to no tenant group are not limited.
+     * Needs the optinexus.baseUrl, optinexus.clientId and optinexus.clientSecret settings. Default is false.
+     */
+    public static final ConfigKey<Boolean> OPTINEXUS_ENTITLEMENTS_ENFORCE = new BooleanConfigKey(
+            "optinexus.entitlements.enforce",
+            List.of(KeyType.CONFIG));
+
+    /**
+     * Seconds an entitlement answer from OptiNexus is reused. When OptiNexus cannot be reached, the last answer is
+     * used however old it is; with no answer at all the feature is refused. Default is 300.
+     */
+    public static final ConfigKey<Long> OPTINEXUS_ENTITLEMENTS_TTL = new LongConfigKey(
+            "optinexus.entitlements.ttl",
+            List.of(KeyType.CONFIG),
+            300L);
+
+    /**
      * If no data is reported by a device for the given amount of time, status changes from online to unknown. Value is
      * in seconds. Default timeout is 10 minutes.
      */
