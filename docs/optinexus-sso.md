@@ -76,8 +76,10 @@ OptiNexus tells OptiRadar when a user's sessions have to end, through OpenID Con
   OptiRadar. Register the OptiRadar address (`https://<radar>`, as `web.url` / the server address, without a path)
   as a post-logout redirect URI of the OIDC client; without it OptiNexus shows its own "signed out" page.
 
-Limits: a plain logout does not revoke long-lived OptiRadar API tokens (a deactivation does, because the account is
-disabled); the `state` parameter is not checked (upstream behavior).
+A central logout also ends the user's API tokens issued before it: tokens carry their issue time (`c`) and the user keeps
+`optinexusSessionsNotBefore`; an older token is refused. Tokens issued before the issue time was recorded cannot be shown to be
+newer, so they are refused after the first central logout of that user (fail closed; the user signs in again and gets a new one).
+Logging out of OptiRadar itself (`DELETE /api/session`) only ends that browser session, as before.
 
 ## Events to OptiNexus
 
