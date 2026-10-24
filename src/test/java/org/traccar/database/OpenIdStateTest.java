@@ -1,8 +1,8 @@
 package org.traccar.database;
 
-import jakarta.servlet.http.HttpSession;
 import org.junit.jupiter.api.Test;
 
+import jakarta.servlet.http.HttpSession;
 import java.security.GeneralSecurityException;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;

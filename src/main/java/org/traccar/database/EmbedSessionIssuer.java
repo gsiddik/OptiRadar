@@ -15,8 +15,6 @@
  */
 package org.traccar.database;
 
-import jakarta.inject.Inject;
-import jakarta.inject.Singleton;
 import org.traccar.api.signature.TokenManager;
 import org.traccar.model.Group;
 import org.traccar.model.Permission;
@@ -28,6 +26,8 @@ import org.traccar.storage.query.Columns;
 import org.traccar.storage.query.Condition;
 import org.traccar.storage.query.Request;
 
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 import java.util.Date;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;

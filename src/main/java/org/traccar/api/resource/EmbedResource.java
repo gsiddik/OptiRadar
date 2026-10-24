@@ -15,6 +15,9 @@
  */
 package org.traccar.api.resource;
 
+import org.traccar.api.BaseResource;
+import org.traccar.database.EmbedSessionIssuer;
+
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.FormParam;
@@ -22,9 +25,6 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
-import org.traccar.api.BaseResource;
-import org.traccar.database.EmbedSessionIssuer;
-
 import java.util.Map;
 
 /**
