@@ -89,7 +89,8 @@ public class OpenIdTenantLinker {
     /**
      * Creates the group of a tenant when it has none, so devices can be registered for the tenant before any of its
      * people has signed in. An existing group is never touched; with more than one the tenant is already misconfigured
-     * and nothing is added.
+     * and nothing is added. A new group is linked to every administrator: the web app lists only the groups linked to
+     * the signed-in user, so an unlinked group would be invisible to the operators who have to put devices in it.
      *
      * @param tenantId the OptiNexus tenant id (the value of the tenant group attribute)
      * @param name the group name, normally the tenant's name; the id is used when it is blank
@@ -109,15 +110,30 @@ public class OpenIdTenantLinker {
         group.setName(name == null || name.isBlank() ? wanted : name.trim());
         group.set(attribute, wanted);
         group.setId(storage.addObject(group, new Request(new Columns.Exclude("id"))));
+        for (User user : storage.getObjects(User.class, new Request(new Columns.All()))) {
+            if (user.getAdministrator()) {
+                storage.addPermission(new Permission(User.class, user.getId(), Group.class, group.getId()));
+                try {
+                    cacheManager.invalidatePermission(true, User.class, user.getId(), Group.class, group.getId(), true);
+                } catch (Exception e) {
+                    throw new StorageException(e);
+                }
+            }
+        }
         LOGGER.info("Created group {} ({}) for tenant {}", group.getName(), group.getId(), wanted);
         return true;
     }
 
     /**
      * The tenants the user is linked to (tenant groups they are a direct member of); empty for a user that belongs to
-     * no tenant.
+     * no tenant and for an administrator.
      */
     public Set<String> tenantsOf(long userId) throws StorageException {
+        User user = storage.getObject(User.class, new Request(new Columns.All(), new Condition.Equals("id", userId)));
+        if (user != null && user.getAdministrator()) {
+            // An administrator sees every tenant's group (they are linked for visibility) but belongs to none of them.
+            return Set.of();
+        }
         Set<Long> linked = new HashSet<>();
         for (Permission permission : storage.getPermissions(User.class, userId, Group.class, 0)) {
             linked.add(permission.getPropertyId());
