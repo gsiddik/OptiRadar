@@ -1,0 +1,83 @@
+# OptiRadar: PostgreSQL and the server (API, OptiRadar Web and the device protocol listeners) in one image.
+#
+# Two kinds of settings, kept apart on purpose:
+#   * the root .env is read by Compose for ${...} interpolation only (copy .env.example; never commit it);
+#   * the runtime environment of the container is exactly the `environment:` block below (CONFIG_USE_ENVIRONMENT_VARIABLES=true makes the
+#     server read its settings from it), so a changed value needs `docker compose up -d`, never an image rebuild.
+# Only port 8082 (OptiRadar Web + API) is published. Device protocol ports are published only by the optional
+# docker-compose.devices.yml, and only the range you choose (never the whole protocol range).
+name: optiradar
+
+services:
+  database:
+    image: ${RADAR_DB_IMAGE:-postgres:16-alpine}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${RADAR_DB_NAME:-optiradar}
+      POSTGRES_USER: ${RADAR_DB_USER:-optiradar}
+      POSTGRES_PASSWORD: ${RADAR_DB_PASSWORD:?set RADAR_DB_PASSWORD in .env}
+    volumes:
+      - optiradar_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${RADAR_DB_USER:-optiradar} -d ${RADAR_DB_NAME:-optiradar}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  radar:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.container
+      args:
+        JDK_IMAGE: ${JDK_IMAGE:-eclipse-temurin:25-jdk}
+        JRE_IMAGE: ${JRE_IMAGE:-eclipse-temurin:25-jre}
+        NODE_IMAGE: ${NODE_IMAGE:-node:22}
+    image: ${RADAR_IMAGE:-optiradar:local}
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      CONFIG_USE_ENVIRONMENT_VARIABLES: "true"
+      LOGGER_CONSOLE: "true"
+      DATABASE_DRIVER: org.postgresql.Driver
+      DATABASE_URL: jdbc:postgresql://database:5432/${RADAR_DB_NAME:-optiradar}
+      DATABASE_USER: ${RADAR_DB_USER:-optiradar}
+      DATABASE_PASSWORD: ${RADAR_DB_PASSWORD:?set RADAR_DB_PASSWORD in .env}
+      WEB_URL: ${RADAR_PUBLIC_URL:-http://localhost:8082}
+      # OptiNexus as OpenID provider (single sign-on, central logout); all empty = password sign-in only, as before.
+      OPENID_ISSUER_URL: ${OPTINEXUS_BASE_URL:-}
+      OPENID_CLIENT_ID: ${OPTINEXUS_SSO_CLIENT_ID:-}
+      OPENID_CLIENT_SECRET: ${OPTINEXUS_SSO_CLIENT_SECRET:-}
+      OPENID_ALLOW_GROUP: ${OPENID_ALLOW_GROUP:-optiradar}
+      OPENID_TENANT_CLAIM: ${OPENID_TENANT_CLAIM:-tenant_id}
+      OPENID_TENANT_GROUP_ATTRIBUTE: ${OPENID_TENANT_GROUP_ATTRIBUTE:-optinexusTenantId}
+      OPENID_ALLOW_REGISTRATION: ${OPENID_ALLOW_REGISTRATION:-true}
+      USERS_DEFAULT_DEVICE_LIMIT: ${USERS_DEFAULT_DEVICE_LIMIT:-0}
+      # Device and geofence events to OptiNexus (service account with scope event.write).
+      EVENT_STATUS_ENABLE: ${EVENT_STATUS_ENABLE:-true}
+      OPTINEXUS_EVENTS_ENABLE: ${OPTINEXUS_EVENTS_ENABLE:-false}
+      OPTINEXUS_BASE_URL: ${OPTINEXUS_BASE_URL:-}
+      OPTINEXUS_CLIENT_ID: ${OPTINEXUS_SERVICE_CLIENT_ID:-}
+      OPTINEXUS_CLIENT_SECRET: ${OPTINEXUS_SERVICE_CLIENT_SECRET:-}
+      # Plan features from OptiNexus (service account also needs scope entitlement.check); off keeps the previous behaviour.
+      OPTINEXUS_ENTITLEMENTS_ENFORCE: ${OPTINEXUS_ENTITLEMENTS_ENFORCE:-false}
+      # Origins allowed to show OptiRadar Web in an iframe (space separated, for example the OptiDeli console). Empty = no
+      # frame-ancestors header, as before. Embed sessions themselves are opened by OptiNexus (POST /api/optinexus/embed).
+      WEB_FRAME_ANCESTORS: ${WEB_FRAME_ANCESTORS:-}
+    volumes:
+      - optiradar_logs:/opt/optiradar/logs
+      - optiradar_data:/opt/optiradar/data
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${RADAR_PORT:-8082}:8082"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8082/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+
+volumes:
+  optiradar_db:
+  optiradar_logs:
+  optiradar_data:

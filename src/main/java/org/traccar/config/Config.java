@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.InvalidPropertiesFormatException;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 
@@ -63,8 +64,18 @@ public class Config {
     }
 
     private boolean hasKey(String key) {
-        return useEnvironmentVariables && System.getenv().containsKey(getEnvironmentVariableName(key))
+        return useEnvironmentVariables && hasEnvironmentValue(System.getenv(), key)
                 || properties.containsKey(key);
+    }
+
+    /**
+     * An empty environment variable counts as not set, the same way getString ignores it. Compose files pass every
+     * optional setting as {@code KEY: ${KEY:-}}, and an empty value must not switch a feature on (OpenID,
+     * frame-ancestors, ...).
+     */
+    static boolean hasEnvironmentValue(Map<String, String> environment, String key) {
+        String value = environment.get(getEnvironmentVariableName(key));
+        return value != null && !value.isEmpty();
     }
 
     public String getString(ConfigKey<String> key) {

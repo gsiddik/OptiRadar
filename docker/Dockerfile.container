@@ -1,0 +1,57 @@
+# syntax=docker/dockerfile:1
+# OptiRadar image: the server and OptiRadar Web built from source in one place (no pre-made distribution ZIP is needed).
+# Build context: the repository root.   docker build -f docker/Dockerfile.container -t optiradar:local .
+#
+# OptiRadar Web comes from the `optiradar-web` submodule by default (git submodule update --init). To build a different checkout of
+# OptiRadar-web (for example a sibling working copy) pass it as a named context that replaces the web-src stage:
+#   docker build -f docker/Dockerfile.container --build-context web-src=../optiradar-web -t optiradar:local .
+ARG JDK_IMAGE=eclipse-temurin:25-jdk
+ARG JRE_IMAGE=eclipse-temurin:25-jre
+ARG NODE_IMAGE=node:22
+
+FROM scratch AS web-src
+COPY optiradar-web/ /
+
+FROM ${NODE_IMAGE} AS web
+WORKDIR /web
+COPY --from=web-src . .
+# A named context (a sibling working copy, for example on Windows) may carry its own node_modules or build output: those are host
+# files, so they are dropped and the dependencies are installed clean from package-lock.json.
+RUN rm -rf node_modules build && npm ci && npm run build
+
+FROM ${JDK_IMAGE} AS server
+WORKDIR /src
+COPY gradlew gradlew.bat settings.gradle build.gradle ./
+COPY gradle gradle
+COPY src src
+COPY schema schema
+COPY templates templates
+COPY openapi.yaml ./
+# assemble writes target/tracker-server.jar and copies the runtime classpath to target/lib (the same layout as the release installers).
+# sed: a Windows checkout with core.autocrlf=true gives gradlew CRLF line ends, which /bin/sh cannot run.
+RUN sed -i 's/\r$//' gradlew && chmod +x gradlew && ./gradlew assemble -x test --no-daemon
+
+FROM ${JRE_IMAGE}
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --system --uid 10001 --home-dir /opt/optiradar optiradar
+WORKDIR /opt/optiradar
+COPY --from=server /src/target/tracker-server.jar ./
+COPY --from=server /src/target/lib lib
+COPY schema schema
+COPY templates templates
+COPY --from=web /web/build web
+COPY --from=web /web/src/resources/l10n templates/translations
+COPY setup/optiradar.xml conf/optiradar.xml
+RUN mkdir -p data logs && chown -R optiradar:optiradar data logs
+
+USER optiradar
+# Settings come from the environment (DATABASE_URL, OPENID_*, OPTINEXUS_*, ...); conf/optiradar.xml only holds the defaults.
+ENV CONFIG_USE_ENVIRONMENT_VARIABLES=true \
+    LOGGER_CONSOLE=true
+EXPOSE 8082
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=5 \
+    CMD curl -fsS http://127.0.0.1:8082/api/health || exit 1
+ENTRYPOINT ["java", "-XX:+ExitOnOutOfMemoryError"]
+CMD ["-jar", "tracker-server.jar", "conf/optiradar.xml"]

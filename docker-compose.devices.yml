@@ -1,0 +1,9 @@
+# Optional: publish a range of device protocol ports next to docker-compose.yml.
+#   docker compose -f docker-compose.yml -f docker-compose.devices.yml up -d
+# Choose only the ports your devices use (RADAR_DEVICE_PORT_FROM/TO in .env). Each published port costs a forwarder on Docker Desktop and
+# Podman machines, so the full 5000-5500 range is never the default.
+services:
+  radar:
+    ports:
+      - "${RADAR_DEVICE_BIND:-0.0.0.0}:${RADAR_DEVICE_PORT_FROM:-5001}-${RADAR_DEVICE_PORT_TO:-5010}:${RADAR_DEVICE_PORT_FROM:-5001}-${RADAR_DEVICE_PORT_TO:-5010}/tcp"
+      - "${RADAR_DEVICE_BIND:-0.0.0.0}:${RADAR_DEVICE_PORT_FROM:-5001}-${RADAR_DEVICE_PORT_TO:-5010}:${RADAR_DEVICE_PORT_FROM:-5001}-${RADAR_DEVICE_PORT_TO:-5010}/udp"
