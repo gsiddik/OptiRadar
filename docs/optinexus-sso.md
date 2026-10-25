@@ -194,3 +194,21 @@ Before switching it on: the OptiRadar service account needs the scope `entitleme
 `optinexus.clientId` and `optinexus.clientSecret` must be set, and every tenant's plan must already contain the capabilities it is meant to
 keep (`tracking`, `reports`/`trip_reports`, `geofencing`/`geofences`), otherwise those tenants lose reports and geofence editing at once.
 It is off by default so existing installations keep working.
+
+## Tenant group created by OptiNexus (webhook)
+
+OptiNexus tells OptiRadar when it assigns OptiRadar to a tenant (its subscription now covers it): `POST /api/optinexus/events`
+with the event `cgo.tenant.application_assigned`, signed by the event broker (`Opti-Webhook-Signature: v1=<HMAC-SHA256 of
+"<delivery id>.<timestamp>.<body>">`, refused when older or newer than five minutes). OptiRadar then creates the tenant's group
+(name = tenant name, attribute `optinexusTenantId` = tenant id) when none exists, so devices can be registered for the tenant before
+anybody from it has signed in. An existing group is never changed, a second group is never added, and nothing is deleted when the
+application is later removed from the tenant. Events about other applications or other event types are acknowledged and ignored.
+
+* Settings: `optinexus.webhookSecret` (`OPTINEXUS_WEBHOOK_SECRET`, the `EVENT_WEBHOOK_SECRET` of the subscription; empty switches the
+  endpoint off and it answers 503) and `optinexus.applicationCode` (default `optiradar`).
+* Register the subscription once in OptiNexus: `php artisan ecosystem:register-event-subscription optiradar
+  cgo.tenant.application_assigned --url=<radar>/api/optinexus/events --secret-file=<0600 file>`. The URL must be https unless
+  `EVENT_WEBHOOK_ALLOW_HTTP=true` (local trial only).
+* Answers: 202 `{"result":"group_created" | "group_exists" | "ignored"}`; 401 bad or stale signature; 400 invalid event (not retried
+  by OptiNexus); 5xx when the group could not be stored (retried).
+* Tests: `OptinexusWebhookVerifierTest`, `OptinexusTenantEventsTest`, `OpenIdTenantLinkerTest`.
