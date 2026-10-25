@@ -23,7 +23,8 @@ import java.security.MessageDigest;
 /**
  * The OpenID Connect {@code state}: a value sent with the authorization request that must come back unchanged on the
  * callback in the same browser session, so a callback that this browser did not start is refused (login CSRF). The PKCE
- * code verifier of the same authorization request is kept the same way, so the code can only be redeemed by this browser.
+ * code verifier of the same authorization request is kept the same way, so the code can only be redeemed by this
+ * browser.
  */
 public final class OpenIdState {
 
