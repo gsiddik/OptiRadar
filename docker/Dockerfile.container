@@ -14,10 +14,10 @@ COPY optiradar-web/ /
 
 FROM ${NODE_IMAGE} AS web
 WORKDIR /web
-COPY --from=web-src package.json package-lock.json ./
-RUN npm ci
 COPY --from=web-src . .
-RUN npm run build
+# A named context (a sibling working copy, for example on Windows) may carry its own node_modules or build output: those are host
+# files, so they are dropped and the dependencies are installed clean from package-lock.json.
+RUN rm -rf node_modules build && npm ci && npm run build
 
 FROM ${JDK_IMAGE} AS server
 WORKDIR /src
@@ -28,7 +28,8 @@ COPY schema schema
 COPY templates templates
 COPY openapi.yaml ./
 # assemble writes target/tracker-server.jar and copies the runtime classpath to target/lib (the same layout as the release installers).
-RUN chmod +x gradlew && ./gradlew assemble -x test --no-daemon
+# sed: a Windows checkout with core.autocrlf=true gives gradlew CRLF line ends, which /bin/sh cannot run.
+RUN sed -i 's/\r$//' gradlew && chmod +x gradlew && ./gradlew assemble -x test --no-daemon
 
 FROM ${JRE_IMAGE}
 RUN apt-get update \

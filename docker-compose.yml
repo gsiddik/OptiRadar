@@ -60,6 +60,11 @@ services:
       OPTINEXUS_BASE_URL: ${OPTINEXUS_BASE_URL:-}
       OPTINEXUS_CLIENT_ID: ${OPTINEXUS_SERVICE_CLIENT_ID:-}
       OPTINEXUS_CLIENT_SECRET: ${OPTINEXUS_SERVICE_CLIENT_SECRET:-}
+      # Plan features from OptiNexus (service account also needs scope entitlement.check); off keeps the previous behaviour.
+      OPTINEXUS_ENTITLEMENTS_ENFORCE: ${OPTINEXUS_ENTITLEMENTS_ENFORCE:-false}
+      # Origins allowed to show OptiRadar Web in an iframe (space separated, for example the OptiDeli console). Empty = no
+      # frame-ancestors header, as before. Embed sessions themselves are opened by OptiNexus (POST /api/optinexus/embed).
+      WEB_FRAME_ANCESTORS: ${WEB_FRAME_ANCESTORS:-}
     volumes:
       - optiradar_logs:/opt/optiradar/logs
       - optiradar_data:/opt/optiradar/data
