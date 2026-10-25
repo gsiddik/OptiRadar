@@ -44,7 +44,7 @@ COPY templates templates
 COPY --from=web /web/build web
 COPY --from=web /web/src/resources/l10n templates/translations
 COPY setup/optiradar.xml conf/optiradar.xml
-RUN mkdir -p data logs && chown -R optiradar:optiradar data logs
+RUN mkdir -p data logs override && chown -R optiradar:optiradar data logs override
 
 USER optiradar
 # Settings come from the environment (DATABASE_URL, OPENID_*, OPTINEXUS_*, ...); conf/optiradar.xml only holds the defaults.
