@@ -56,6 +56,8 @@ services:
       USERS_DEFAULT_DEVICE_LIMIT: ${USERS_DEFAULT_DEVICE_LIMIT:-0}
       # Device and geofence events to OptiNexus (service account with scope event.write).
       EVENT_STATUS_ENABLE: ${EVENT_STATUS_ENABLE:-true}
+      # Signed webhooks from OptiNexus (a tenant group is created when OptiRadar is assigned to a tenant); empty = endpoint off.
+      OPTINEXUS_WEBHOOK_SECRET: ${OPTINEXUS_WEBHOOK_SECRET:-}
       OPTINEXUS_EVENTS_ENABLE: ${OPTINEXUS_EVENTS_ENABLE:-false}
       OPTINEXUS_BASE_URL: ${OPTINEXUS_BASE_URL:-}
       OPTINEXUS_CLIENT_ID: ${OPTINEXUS_SERVICE_CLIENT_ID:-}

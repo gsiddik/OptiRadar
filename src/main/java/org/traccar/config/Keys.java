@@ -943,6 +943,24 @@ public final class Keys {
             List.of(KeyType.CONFIG));
 
     /**
+     * Signing secret of the OptiNexus event subscription of OptiRadar (EVENT_WEBHOOK_SECRET, issued by
+     * ecosystem:register-event-subscription). OptiNexus tells OptiRadar through signed webhooks to
+     * /api/optinexus/events, for example to create the group of a tenant when OptiRadar is assigned to it. Empty
+     * switches the endpoint off.
+     */
+    public static final ConfigKey<String> OPTINEXUS_WEBHOOK_SECRET = new StringConfigKey(
+            "optinexus.webhookSecret",
+            List.of(KeyType.CONFIG));
+
+    /**
+     * Code of OptiRadar in OptiNexus. Tenant events about other applications are ignored. Defaults to "optiradar".
+     */
+    public static final ConfigKey<String> OPTINEXUS_APPLICATION_CODE = new StringConfigKey(
+            "optinexus.applicationCode",
+            List.of(KeyType.CONFIG),
+            "optiradar");
+
+    /**
      * Seconds between deliveries of pending events to OptiNexus. Default is 30 seconds.
      */
     public static final ConfigKey<Long> OPTINEXUS_EVENTS_INTERVAL = new LongConfigKey(

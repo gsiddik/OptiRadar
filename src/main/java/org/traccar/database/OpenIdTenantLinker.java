@@ -87,6 +87,33 @@ public class OpenIdTenantLinker {
     }
 
     /**
+     * Creates the group of a tenant when it has none, so devices can be registered for the tenant before any of its
+     * people has signed in. An existing group is never touched; with more than one the tenant is already misconfigured
+     * and nothing is added.
+     *
+     * @param tenantId the OptiNexus tenant id (the value of the tenant group attribute)
+     * @param name the group name, normally the tenant's name; the id is used when it is blank
+     * @return true when a group was created
+     */
+    public synchronized boolean ensureGroup(String tenantId, String name) throws StorageException {
+        if (tenantId == null || tenantId.isBlank()) {
+            throw new IllegalArgumentException("The tenant id is missing");
+        }
+        String wanted = tenantId.trim().toLowerCase(Locale.ROOT);
+        for (Group existing : tenantGroups()) {
+            if (wanted.equals(tenantOf(existing))) {
+                return false;
+            }
+        }
+        Group group = new Group();
+        group.setName(name == null || name.isBlank() ? wanted : name.trim());
+        group.set(attribute, wanted);
+        group.setId(storage.addObject(group, new Request(new Columns.Exclude("id"))));
+        LOGGER.info("Created group {} ({}) for tenant {}", group.getName(), group.getId(), wanted);
+        return true;
+    }
+
+    /**
      * The tenants the user is linked to (tenant groups they are a direct member of); empty for a user that belongs to
      * no tenant.
      */
