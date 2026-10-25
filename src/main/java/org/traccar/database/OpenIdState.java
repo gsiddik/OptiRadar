@@ -22,11 +22,14 @@ import java.security.MessageDigest;
 
 /**
  * The OpenID Connect {@code state}: a value sent with the authorization request that must come back unchanged on the
- * callback in the same browser session, so a callback that this browser did not start is refused (login CSRF).
+ * callback in the same browser session, so a callback that this browser did not start is refused (login CSRF). The PKCE
+ * code verifier of the same authorization request is kept the same way, so the code can only be redeemed by this browser.
  */
 public final class OpenIdState {
 
     static final String ATTRIBUTE = "openid.state";
+
+    static final String VERIFIER_ATTRIBUTE = "openid.pkce.verifier";
 
     private OpenIdState() {
     }
@@ -38,6 +41,21 @@ public final class OpenIdState {
     /** Remembers the state of an authorization request in the session. */
     public static void remember(HttpSession session, String state) {
         session.setAttribute(ATTRIBUTE, state);
+    }
+
+    /** Remembers the PKCE code verifier of an authorization request in the session. */
+    public static void rememberVerifier(HttpSession session, String verifier) {
+        session.setAttribute(VERIFIER_ATTRIBUTE, verifier);
+    }
+
+    /** Returns the remembered PKCE code verifier, once: it is removed whether or not there was one. */
+    public static String takeVerifier(HttpSession session) {
+        if (session == null) {
+            return null;
+        }
+        Object verifier = session.getAttribute(VERIFIER_ATTRIBUTE);
+        session.removeAttribute(VERIFIER_ATTRIBUTE);
+        return verifier instanceof String ? (String) verifier : null;
     }
 
     /**
