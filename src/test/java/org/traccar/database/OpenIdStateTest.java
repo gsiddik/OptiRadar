@@ -27,6 +27,20 @@ public class OpenIdStateTest {
     }
 
     @Test
+    public void handsBackTheRememberedCodeVerifierOnlyOnce() {
+        HttpSession session = mock(HttpSession.class);
+        when(session.getAttribute(OpenIdState.VERIFIER_ATTRIBUTE)).thenReturn("verifier-value");
+        org.junit.jupiter.api.Assertions.assertEquals("verifier-value", OpenIdState.takeVerifier(session));
+        verify(session).removeAttribute(OpenIdState.VERIFIER_ATTRIBUTE);
+    }
+
+    @Test
+    public void hasNoCodeVerifierWithoutASessionOrWhenNoneWasRemembered() {
+        org.junit.jupiter.api.Assertions.assertNull(OpenIdState.takeVerifier(null));
+        org.junit.jupiter.api.Assertions.assertNull(OpenIdState.takeVerifier(mock(HttpSession.class)));
+    }
+
+    @Test
     public void refusesAnotherMissingOrUnknownState() {
         assertThrows(GeneralSecurityException.class, () -> OpenIdState.verify(sessionWith("abc"), "xyz"));
         assertThrows(GeneralSecurityException.class, () -> OpenIdState.verify(sessionWith("abc"), null));

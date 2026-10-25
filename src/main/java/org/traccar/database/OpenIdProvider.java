@@ -34,6 +34,8 @@ import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.id.State;
+import com.nimbusds.oauth2.sdk.pkce.CodeChallengeMethod;
+import com.nimbusds.oauth2.sdk.pkce.CodeVerifier;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.oauth2.sdk.util.URLUtils;
 import com.nimbusds.openid.connect.sdk.AuthenticationRequest;
@@ -130,21 +132,26 @@ public class OpenIdProvider {
             scope.add(groupsClaimName);
         }
         State state = new State();
+        AuthenticationRequest.Builder builder =
+                new AuthenticationRequest.Builder(new ResponseType("code"), scope, clientId, callbackUrl)
+                        .endpointURI(authUrl)
+                        .state(state);
         if (tenantClaim != null) {
-            // Tenant-bound (OptiNexus) logins refuse a callback this browser did not start.
+            // Tenant-bound (OptiNexus) logins refuse a callback this browser did not start, and OptiNexus requires
+            // PKCE (S256) from every client: the verifier stays in this browser's session until the code is redeemed.
             OpenIdState.remember(request.getSession(true), state.getValue());
+            CodeVerifier verifier = new CodeVerifier();
+            OpenIdState.rememberVerifier(request.getSession(true), verifier.getValue());
+            builder.codeChallenge(verifier, CodeChallengeMethod.S256);
         }
-        return new AuthenticationRequest.Builder(new ResponseType("code"), scope, clientId, callbackUrl)
-                .endpointURI(authUrl)
-                .state(state)
-                .build()
-                .toURI();
+        return builder.build().toURI();
     }
 
     private OIDCTokenResponse getToken(
-            URI redirectUri, AuthorizationCode code) throws IOException, ParseException, GeneralSecurityException {
+            URI redirectUri, AuthorizationCode code, CodeVerifier verifier)
+            throws IOException, ParseException, GeneralSecurityException {
 
-        AuthorizationGrant codeGrant = new AuthorizationCodeGrant(code, redirectUri);
+        AuthorizationGrant codeGrant = new AuthorizationCodeGrant(code, redirectUri, verifier);
         TokenRequest tokenRequest = new TokenRequest(tokenUrl, clientAuth, codeGrant, null);
 
         HTTPResponse tokenResponse = tokenRequest.toHTTPRequest().send();
@@ -188,7 +195,12 @@ public class OpenIdProvider {
         AuthorizationResponse response = AuthorizationResponse.parse(
                 redirectUri, URLUtils.parseParameters(queryParameters));
 
+        CodeVerifier verifier = null;
         if (tenantClaim != null) {
+            String remembered = OpenIdState.takeVerifier(request.getSession(false));
+            if (remembered != null) {
+                verifier = new CodeVerifier(remembered);
+            }
             State returned = response.getState();
             OpenIdState.verify(request.getSession(false), returned != null ? returned.getValue() : null);
         }
@@ -202,7 +214,7 @@ public class OpenIdProvider {
             throw new GeneralSecurityException("Malformed OpenID callback");
         }
 
-        OIDCTokenResponse tokens = getToken(redirectUri, authCode);
+        OIDCTokenResponse tokens = getToken(redirectUri, authCode, verifier);
 
         BearerAccessToken bearerToken = tokens.getOIDCTokens().getBearerAccessToken();
 
