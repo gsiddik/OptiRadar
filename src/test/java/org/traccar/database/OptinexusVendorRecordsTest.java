@@ -17,6 +17,7 @@ import org.traccar.storage.StorageException;
 import org.traccar.storage.query.Columns;
 import org.traccar.storage.query.Request;
 
+import java.security.GeneralSecurityException;
 import java.util.Map;
 import java.util.Set;
 
@@ -240,7 +241,7 @@ public class OptinexusVendorRecordsTest {
 
     @Test
     public void aTenantWithoutAGroupGetsNoDeviceAndNoError() throws Exception {
-        when(linker.findGroup(TENANT_A)).thenThrow(new java.security.GeneralSecurityException("no group"));
+        when(linker.findGroup(TENANT_A)).thenThrow(new GeneralSecurityException("no group"));
 
         assertEquals("applied", records.handle(fleet(TENANT_A, "B 11 TK", 1, true, null)));
         assertEquals(0, storage.getObjects(Device.class, new Request(new Columns.All())).size());

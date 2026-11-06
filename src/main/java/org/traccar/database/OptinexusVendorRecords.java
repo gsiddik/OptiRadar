@@ -22,6 +22,8 @@ import org.slf4j.LoggerFactory;
 import org.traccar.model.BaseModel;
 import org.traccar.model.Device;
 import org.traccar.model.Driver;
+import org.traccar.model.ExtendedModel;
+import org.traccar.model.Group;
 import org.traccar.model.ObjectOperation;
 import org.traccar.model.OptinexusVendorRecord;
 import org.traccar.session.cache.CacheManager;
@@ -34,6 +36,7 @@ import org.traccar.storage.query.Request;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -42,12 +45,15 @@ import java.util.UUID;
 
 /**
  * The vehicles and drivers of a tenant's vendors, as OptiDeli reports them (docs/integration/MASTER_DATA_SYNC.md,
- * stage 4). A vendor's vehicle may carry a tracker that has to be monitored here, so OptiRadar is told which vendor owns
+ * stage 4). A vendor's vehicle may carry a tracker that has to be monitored here, so OptiRadar is told which
+ * vendor owns
  * it; OptiFleet is not (the tenant does not maintain a vendor's vehicles). OptiDeli owns the data: OptiRadar keeps the
  * latest version per tenant and key and shows it on the matching device (registration number) or driver (licence
  * number) as the attributes {@code ownership}, {@code vendorCode}, {@code vendorName}, {@code carrierType} and
- * {@code vendorActive}. A record that arrives before its device is kept and applied when the device is saved. Nothing is
- * ever published back, and no device or driver is created from a record: OptiRadar cannot invent a tracker's identifier.
+ * {@code vendorActive}. A record that arrives before its device is kept and applied when the device is saved.
+ * Nothing is
+ * ever published back, and no device or driver is created from a record: OptiRadar cannot invent a tracker's
+ * identifier.
  */
 @Singleton
 public class OptinexusVendorRecords {
@@ -183,7 +189,10 @@ public class OptinexusVendorRecords {
         }
     }
 
-    /** Applies the kept record of a vendor's driver to a driver that was just saved by this user (of exactly one tenant). */
+    /**
+     * Applies the kept record of a vendor's driver to a driver that was just saved by this user (of exactly
+     * one tenant).
+     */
     public void enrich(Driver driver, long userId) {
         try {
             Set<String> tenants = linker.tenantsOf(userId);
@@ -202,8 +211,10 @@ public class OptinexusVendorRecords {
     }
 
     /**
-     * A vehicle OptiDeli knows has no device here yet: make one in the tenant group so the vehicle is there to be found. Its identifier is
-     * the identifier the tracker reports when OptiDeli has it, else a placeholder an operator replaces later. Nothing is made when the
+     * A vehicle OptiDeli knows has no device here yet: make one in the tenant group so the vehicle is there
+     * to be found. Its identifier is
+     * the identifier the tracker reports when OptiDeli has it, else a placeholder an operator replaces later.
+     * Nothing is made when the
      * tenant has no group; an identifier that already belongs to a device of another tenant is never taken over.
      */
     private void createPlaceholder(String tenantId, String key, OptinexusVendorRecord record) throws StorageException {
@@ -213,10 +224,10 @@ public class OptinexusVendorRecords {
             if (plate.isBlank()) {
                 return;
             }
-            org.traccar.model.Group group;
+            Group group;
             try {
                 group = linker.findGroup(tenantId);
-            } catch (java.security.GeneralSecurityException e) {
+            } catch (GeneralSecurityException e) {
                 LOGGER.info("Tenant {} has no group here, no device made for vehicle {}", tenantId, key);
                 return;
             }
@@ -235,7 +246,9 @@ public class OptinexusVendorRecords {
                     syncDevice(owner, record);
                     return;
                 } else {
-                    LOGGER.warn("The tracker identifier of vehicle {} belongs to a device of another tenant, placeholder used", key);
+                    LOGGER.warn(
+                            "The tracker identifier of vehicle {} belongs to a device of another tenant,"
+                                    + " placeholder used", key);
                 }
             }
             if (byUniqueId(uniqueId) != null) {
@@ -256,7 +269,10 @@ public class OptinexusVendorRecords {
         }
     }
 
-    /** Keeps the device in line with the record: its tracker identifier once known, and switched off while the vehicle is inactive. */
+    /**
+     * Keeps the device in line with the record: its tracker identifier once known, and switched off while the
+     * vehicle is inactive.
+     */
     private void syncDevice(Device device, OptinexusVendorRecord record) throws StorageException {
         try {
             JsonNode kept = MAPPER.readTree(record.getPayload());
@@ -332,7 +348,7 @@ public class OptinexusVendorRecords {
         }
     }
 
-    private static boolean set(org.traccar.model.ExtendedModel entity, String name, Object value) {
+    private static boolean set(ExtendedModel entity, String name, Object value) {
         if (value instanceof String text && text.isEmpty()) {
             return false; // a field the record does not carry is not an instruction to clear it
         }

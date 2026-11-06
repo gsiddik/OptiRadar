@@ -56,7 +56,10 @@ public class OptinexusVehicleMaster {
 
     static final String EVENT_KEY = "optiradar.vehicle.upserted";
 
-    /** The identifier of a device made for a vehicle OptiDeli knows, before anybody gave the identifier the tracker reports. */
+    /**
+     * The identifier of a device made for a vehicle OptiDeli knows, before anybody gave the identifier the
+     * tracker reports.
+     */
     public static final String PLACEHOLDER_PREFIX = "BELUM-";
 
     private static final int MAX_GROUP_DEPTH = 10;
@@ -77,8 +80,10 @@ public class OptinexusVehicleMaster {
     }
 
     /**
-     * The OptiNexus tenant of the device: the identifier on its group, else on the nearest ancestor group. The groups are
-     * read from storage, not from the cache: a device that was just saved is not in the cache yet. Anything that is not a
+     * The OptiNexus tenant of the device: the identifier on its group, else on the nearest ancestor group.
+     * The groups are
+     * read from storage, not from the cache: a device that was just saved is not in the cache yet. Anything
+     * that is not a
      * UUID counts as no tenant.
      */
     public String tenantOf(Device device) throws StorageException {
@@ -133,7 +138,8 @@ public class OptinexusVehicleMaster {
      * @return whether an event was queued
      */
     public boolean publish(Device device) {
-        // A placeholder does not report anything yet: sharing it would tell the other platforms about a tracker that does not exist.
+        // A placeholder does not report anything yet: sharing it would tell the other platforms about a
+        // tracker that does not exist.
         if (!enabled || device == null || isPlaceholder(device)) {
             return false;
         }

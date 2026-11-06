@@ -28,7 +28,8 @@ import jakarta.ws.rs.core.MediaType;
 import java.util.Map;
 
 /**
- * Administrator action to share the vehicles and drivers of all tenants with the other platforms again (first start-up of the
+ * Administrator action to share the vehicles and drivers of all tenants with the other platforms again (first
+ * start-up of the
  * sync, or after an outage). Saving a device already shares its vehicle, so this is only needed for devices that
  * existed before.
  */
